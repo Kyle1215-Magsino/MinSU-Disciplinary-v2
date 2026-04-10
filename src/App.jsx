@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard'
 import IncidentReport from './pages/IncidentReport'
 import CaseManagement from './pages/CaseManagement'
 import Reports from './pages/Reports'
+import UserManagement from './pages/UserManagement'
 import SeedData from './pages/SeedData'
 import Layout from './components/Layout'
 
@@ -78,6 +79,7 @@ function App() {
           <Route path="report-incident" element={<IncidentReport />} />
           <Route path="cases" element={<CaseManagement />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="users" element={<UserManagement />} />
         </Route>
       </Routes>
     </Router>

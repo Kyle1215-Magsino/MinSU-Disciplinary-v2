@@ -1,18 +1,32 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Disciplinary cases collection
-    match /disciplinary_cases/{caseId} {
-      // Allow authenticated users to read and write
-      allow read, write: if request.auth != null;
+    // Helper function to check if user is not archived
+    function isActiveUser() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.archived == false;
     }
     
-    // Users collection (optional - for storing user profiles)
+    // Disciplinary cases collection
+    match /disciplinary_cases/{caseId} {
+      // Allow only active (non-archived) authenticated users to read and write
+      allow read, write: if isActiveUser();
+    }
+    
+    // Users collection
     match /users/{userId} {
-      // Users can read their own profile
-      allow read: if request.auth != null && request.auth.uid == userId;
-      // Users can update their own profile
-      allow write: if request.auth != null && request.auth.uid == userId;
+      // Allow authenticated users to read any user profile
+      allow read: if request.auth != null;
+      
+      // Allow users to create their own profile during registration
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow users to update their own profile
+      allow update: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow admins to create, update, and delete any user
+      allow write: if request.auth != null && 
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
   }
 }

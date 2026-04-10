@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { useState, useEffect } from 'react'
+import { collection, addDoc, serverTimestamp, query, getDocs } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import toast from 'react-hot-toast'
-import { FaUser, FaIdCard, FaExclamationTriangle, FaFileAlt, FaCalendar, FaMapMarkerAlt, FaUserTie } from 'react-icons/fa'
+import { FaUser, FaIdCard, FaExclamationTriangle, FaFileAlt, FaCalendar, FaMapMarkerAlt, FaUserTie, FaSearch } from 'react-icons/fa'
 import Modal from '../components/Modal'
 
 export default function IncidentReport() {
@@ -18,6 +18,70 @@ export default function IncidentReport() {
   const [loading, setLoading] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [generatedCaseNumber, setGeneratedCaseNumber] = useState('')
+  const [students, setStudents] = useState([])
+  const [filteredStudents, setFilteredStudents] = useState([])
+  const [showStudentDropdown, setShowStudentDropdown] = useState(false)
+
+  useEffect(() => {
+    fetchStudents()
+  }, [])
+
+  const fetchStudents = async () => {
+    try {
+      const q = query(collection(db, 'disciplinary_cases'))
+      const querySnapshot = await getDocs(q)
+      const casesData = querySnapshot.docs.map(doc => doc.data())
+      
+      // Get unique students with offense count
+      const uniqueStudents = {}
+      casesData.forEach(case_ => {
+        if (!uniqueStudents[case_.student_id]) {
+          uniqueStudents[case_.student_id] = {
+            name: case_.student_name,
+            id: case_.student_id,
+            offenseCount: 0
+          }
+        }
+        uniqueStudents[case_.student_id].offenseCount++
+      })
+      
+      setStudents(Object.values(uniqueStudents))
+    } catch (error) {
+      console.error('Error fetching students:', error)
+    }
+  }
+
+  const handleStudentNameChange = (e) => {
+    const value = e.target.value
+    setFormData({ ...formData, student_name: value, violation_type: '' })
+    
+    if (value.length > 0) {
+      const filtered = students.filter(student =>
+        student.name.toLowerCase().includes(value.toLowerCase())
+      )
+      setFilteredStudents(filtered)
+      setShowStudentDropdown(true)
+    } else {
+      setShowStudentDropdown(false)
+    }
+  }
+
+  const selectStudent = (student) => {
+    // Calculate recommended offense level for this student
+    const offenseLevel = student.offenseCount + 1
+    const offenseText = offenseLevel === 1 ? '1st Offense' :
+                       offenseLevel === 2 ? '2nd Offense' :
+                       offenseLevel === 3 ? '3rd Offense' :
+                       `${offenseLevel}th Offense`
+    
+    setFormData({
+      ...formData,
+      student_name: student.name,
+      student_id: student.id,
+      violation_type: offenseLevel <= 3 ? offenseText : '' // Auto-fill only if 1st-3rd
+    })
+    setShowStudentDropdown(false)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -60,12 +124,12 @@ export default function IncidentReport() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">Report Incident</h2>
-        <p className="text-gray-600 mt-2">Submit a new disciplinary case report</p>
+      <div className="mb-6 sm:mb-8">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Report Incident</h2>
+        <p className="text-sm sm:text-base text-gray-600 mt-2">Submit a new disciplinary case report</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg border-2 border-emerald-500 p-8 space-y-8">
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg border-2 border-emerald-500 p-4 sm:p-8 space-y-6 sm:space-y-8">
         {/* Student Information Section */}
         <div>
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center space-x-2">
@@ -79,18 +143,74 @@ export default function IncidentReport() {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaUser className="text-gray-400" />
+                  <FaSearch className="text-gray-400" />
                 </div>
                 <input
                   type="text"
                   name="student_name"
                   value={formData.student_name}
-                  onChange={handleChange}
+                  onChange={handleStudentNameChange}
+                  onFocus={() => {
+                    if (formData.student_name.length > 0 && filteredStudents.length > 0) {
+                      setShowStudentDropdown(true)
+                    }
+                  }}
                   className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-                  placeholder="Enter student name"
+                  placeholder="Search or enter student name"
                   required
+                  autoComplete="off"
                 />
+                
+                {/* Dropdown */}
+                {showStudentDropdown && filteredStudents.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border-2 border-emerald-500 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {filteredStudents.map((student, index) => {
+                      const nextOffense = student.offenseCount + 1
+                      const nextOffenseText = nextOffense === 1 ? '1st Offense' :
+                                             nextOffense === 2 ? '2nd Offense' :
+                                             nextOffense === 3 ? '3rd Offense' :
+                                             `${nextOffense}th Offense`
+                      const badgeColor = nextOffense === 1 ? 'bg-green-100 text-green-800' :
+                                        nextOffense === 2 ? 'bg-yellow-100 text-yellow-800' :
+                                        'bg-red-100 text-red-800'
+                      
+                      return (
+                        <div
+                          key={index}
+                          onClick={() => selectStudent(student)}
+                          className="px-4 py-3 hover:bg-emerald-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <FaUser className="text-emerald-600 flex-shrink-0" />
+                              <div>
+                                <p className="font-semibold text-gray-900">{student.name}</p>
+                                <p className="text-xs text-gray-500">ID: {student.id} • {student.offenseCount} previous offense{student.offenseCount !== 1 ? 's' : ''}</p>
+                              </div>
+                            </div>
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ml-2 ${badgeColor}`}>
+                              Next: {nextOffenseText}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                
+                {showStudentDropdown && filteredStudents.length === 0 && formData.student_name.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-300 rounded-lg shadow-lg p-4">
+                    <p className="text-sm text-gray-500 text-center">
+                      No students found. You can enter a new student name.
+                    </p>
+                  </div>
+                )}
               </div>
+              {students.length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  💡 Start typing to search existing students or enter a new name
+                </p>
+              )}
             </div>
 
             <div>
@@ -125,7 +245,7 @@ export default function IncidentReport() {
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Violation Type *
+                Offense Level *
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -138,17 +258,26 @@ export default function IncidentReport() {
                   className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors appearance-none bg-white"
                   required
                 >
-                  <option value="">Select violation type</option>
-                  <option value="Academic Dishonesty">Academic Dishonesty</option>
-                  <option value="Misconduct">Misconduct</option>
-                  <option value="Attendance Violation">Attendance Violation</option>
-                  <option value="Dress Code Violation">Dress Code Violation</option>
-                  <option value="Disrespect">Disrespect</option>
-                  <option value="Bullying">Bullying</option>
-                  <option value="Vandalism">Vandalism</option>
-                  <option value="Other">Other</option>
+                  <option value="">Select offense level</option>
+                  <option value="1st Offense">1st Offense</option>
+                  <option value="2nd Offense">2nd Offense</option>
+                  <option value="3rd Offense">3rd Offense</option>
                 </select>
               </div>
+              {formData.student_name && students.some(s => s.name === formData.student_name) && (
+                <p className="text-xs text-emerald-600 mt-1 font-medium">
+                  💡 Recommended: {
+                    (() => {
+                      const student = students.find(s => s.name === formData.student_name)
+                      const nextOffense = student ? student.offenseCount + 1 : 1
+                      return nextOffense === 1 ? '1st Offense' :
+                             nextOffense === 2 ? '2nd Offense' :
+                             nextOffense === 3 ? '3rd Offense' :
+                             `${nextOffense}th Offense`
+                    })()
+                  }
+                </p>
+              )}
             </div>
 
             <div>
@@ -251,11 +380,11 @@ export default function IncidentReport() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex space-x-4 pt-6 border-t-2 border-gray-200">
+        <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 pt-6 border-t-2 border-gray-200">
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg"
+            className="flex-1 px-6 py-3 sm:py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-base sm:text-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg"
           >
             {loading ? (
               <span className="flex items-center justify-center space-x-2">
@@ -277,7 +406,7 @@ export default function IncidentReport() {
               location: '',
               reported_by: '',
             })}
-            className="px-6 py-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-bold text-lg transition-all transform hover:scale-105"
+            className="px-6 py-3 sm:py-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-bold text-base sm:text-lg transition-all transform hover:scale-105"
           >
             Clear Form
           </button>

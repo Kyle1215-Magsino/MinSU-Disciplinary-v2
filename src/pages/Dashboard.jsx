@@ -55,8 +55,9 @@ export default function Dashboard() {
       name: 'Case Number',
       selector: row => row.case_number,
       sortable: true,
-      width: '180px',
-      cell: row => <span className="font-semibold text-gray-900">{row.case_number}</span>
+      width: '140px',
+      hide: 'sm',
+      cell: row => <span className="font-semibold text-gray-900 text-xs sm:text-sm">{row.case_number}</span>
     },
     {
       name: 'Description',
@@ -65,7 +66,7 @@ export default function Dashboard() {
       grow: 2,
       cell: row => (
         <div className="py-2">
-          <p className="text-gray-700 line-clamp-2">{row.description}</p>
+          <p className="text-gray-700 line-clamp-2 text-xs sm:text-sm">{row.description}</p>
         </div>
       )
     },
@@ -73,10 +74,10 @@ export default function Dashboard() {
       name: 'Status',
       selector: row => row.status,
       sortable: true,
-      width: '120px',
+      width: '100px',
       cell: row => (
         <span
-          className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${
+          className={`px-2 sm:px-3 py-1 rounded-full text-xs font-semibold uppercase ${
             row.status === 'pending'
               ? 'bg-yellow-100 text-yellow-800'
               : row.status === 'active'
@@ -127,27 +128,27 @@ export default function Dashboard() {
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
-          <p className="text-gray-600 mt-1">Overview of disciplinary cases and activities</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h2>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Overview of disciplinary cases and activities</p>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {statCards.map((stat, index) => {
           const IconComponent = stat.icon
           return (
-            <div key={index} className="bg-white rounded-xl shadow-lg p-6 border-2 border-emerald-500 hover:shadow-xl transition-shadow">
-              <div className="flex items-center justify-between">
+            <div key={index} className="bg-white rounded-xl shadow-lg p-4 sm:p-6 border-2 border-emerald-500 hover:shadow-xl transition-shadow">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.label}</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">{stat.label}</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1 sm:mt-2">{stat.value}</p>
                 </div>
-                <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center text-white`}>
-                  <IconComponent className="text-2xl" />
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 ${stat.color} rounded-lg flex items-center justify-center text-white self-end sm:self-auto`}>
+                  <IconComponent className="text-xl sm:text-2xl" />
                 </div>
               </div>
             </div>
@@ -157,14 +158,14 @@ export default function Dashboard() {
 
       {/* Recent Cases DataTable */}
       <div className="bg-white rounded-xl shadow-lg border-2 border-emerald-500 overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-6 border-b border-gray-200 gap-3">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Recent Cases</h3>
-            <p className="text-sm text-gray-500 mt-1">Latest disciplinary case submissions</p>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Recent Cases</h3>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">Latest disciplinary case submissions</p>
           </div>
           <button 
             onClick={() => navigate('/app/cases')}
-            className="text-sm text-emerald-600 hover:text-emerald-700 font-semibold flex items-center space-x-1"
+            className="text-xs sm:text-sm text-emerald-600 hover:text-emerald-700 font-semibold flex items-center space-x-1 self-start sm:self-auto"
           >
             <span>View All</span>
             <span>→</span>

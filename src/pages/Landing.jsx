@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'
-import { auth } from '../lib/firebase'
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'firebase/auth'
+import { auth, db } from '../lib/firebase'
+import { doc, setDoc, getDoc } from 'firebase/firestore'
 import toast from 'react-hot-toast'
 import { FaGavel, FaChartLine, FaFileAlt, FaShieldAlt, FaClock, FaCheckCircle, FaUsers, FaLock, FaEnvelope, FaKey } from 'react-icons/fa'
 
@@ -19,14 +20,14 @@ export default function Landing() {
   const [loginData, setLoginData] = useState({ email: '', password: '' })
   const [loginLoading, setLoginLoading] = useState(false)
   const [loginError, setLoginError] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
 
   // Register state
   const [registerData, setRegisterData] = useState({
     fullName: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    role: 'officer'
+    confirmPassword: ''
   })
   const [registerLoading, setRegisterLoading] = useState(false)
   const [registerError, setRegisterError] = useState('')
@@ -34,17 +35,45 @@ export default function Landing() {
   // Reset password state
   const [resetEmail, setResetEmail] = useState('')
 
+  // Load saved credentials on component mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('minsu_remember_email')
+    if (savedEmail) {
+      setLoginData(prev => ({ ...prev, email: savedEmail }))
+      setRememberMe(true)
+    }
+  }, [])
+
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoginLoading(true)
     setLoginError('')
 
     try {
-      await signInWithEmailAndPassword(auth, loginData.email, loginData.password)
+      const userCredential = await signInWithEmailAndPassword(auth, loginData.email, loginData.password)
+      
+      // Check if user is archived
+      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid))
+      if (userDoc.exists() && userDoc.data().archived === true) {
+        await signOut(auth)
+        setLoginError('This account has been archived. Please contact the administrator.')
+        toast.error('This account has been archived.')
+        setLoginLoading(false)
+        return
+      }
+      
+      // Save or remove email based on remember me checkbox
+      if (rememberMe) {
+        localStorage.setItem('minsu_remember_email', loginData.email)
+      } else {
+        localStorage.removeItem('minsu_remember_email')
+      }
+      
       toast.success('Login successful! Welcome back.')
       setShowLoginModal(false)
       navigate('/app/dashboard')
     } catch (error) {
+      console.error('Login error:', error)
       let message = 'Login failed. Please check your credentials.'
       if (error.code === 'auth/user-not-found') {
         message = 'No account found with this email address.'
@@ -52,6 +81,12 @@ export default function Landing() {
         message = 'Incorrect password. Please try again.'
       } else if (error.code === 'auth/invalid-email') {
         message = 'Invalid email address format.'
+      } else if (error.code === 'auth/invalid-credential') {
+        message = 'Invalid email or password. Please check your credentials.'
+      } else if (error.code === 'auth/too-many-requests') {
+        message = 'Too many failed login attempts. Please try again later.'
+      } else {
+        message = `Login error: ${error.message}`
       }
       setLoginError(message)
       toast.error(message)
@@ -79,7 +114,18 @@ export default function Landing() {
     }
 
     try {
-      await createUserWithEmailAndPassword(auth, registerData.email, registerData.password)
+      const userCredential = await createUserWithEmailAndPassword(auth, registerData.email, registerData.password)
+      
+      // Store user data in Firestore with default role as 'officer'
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        fullName: registerData.fullName,
+        email: registerData.email,
+        role: 'officer',
+        archived: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      
       toast.success('Account created successfully! Welcome to MinSU.')
       setShowRegisterModal(false)
       navigate('/app/dashboard')
@@ -118,38 +164,38 @@ export default function Landing() {
       {/* Navigation */}
       <nav className="bg-white/10 backdrop-blur-lg border-b border-white/20 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform">
-                <FaGavel className="text-2xl text-emerald-600" />
+          <div className="flex justify-between items-center py-3 sm:py-4">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-xl flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform">
+                <FaGavel className="text-xl sm:text-2xl text-emerald-600" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">MinSU</h1>
+                <h1 className="text-base sm:text-xl font-bold text-white">MinSU</h1>
                 <p className="text-xs text-emerald-100">Disciplinary System</p>
               </div>
             </div>
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-2 sm:space-x-6">
               <button
                 onClick={() => setShowAboutModal(true)}
-                className="text-white hover:text-emerald-100 font-medium transition-colors"
+                className="text-white hover:text-emerald-100 font-medium transition-colors text-xs sm:text-base hidden sm:block"
               >
                 About
               </button>
               <button
                 onClick={() => setShowFeaturesModal(true)}
-                className="text-white hover:text-emerald-100 font-medium transition-colors"
+                className="text-white hover:text-emerald-100 font-medium transition-colors text-xs sm:text-base hidden sm:block"
               >
                 Features
               </button>
               <button
                 onClick={() => setShowContactModal(true)}
-                className="text-white hover:text-emerald-100 font-medium transition-colors"
+                className="text-white hover:text-emerald-100 font-medium transition-colors text-xs sm:text-base hidden sm:block"
               >
                 Contact
               </button>
               <button
                 onClick={() => setShowLoginModal(true)}
-                className="bg-white text-emerald-600 px-6 py-2 rounded-lg font-semibold hover:bg-emerald-50 transition-all shadow-lg transform hover:scale-105"
+                className="bg-white text-emerald-600 px-3 sm:px-6 py-2 rounded-lg font-semibold hover:bg-emerald-50 transition-all shadow-lg transform hover:scale-105 text-xs sm:text-base"
               >
                 Sign In
               </button>
@@ -159,30 +205,30 @@ export default function Landing() {
       </nav>
 
       {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-20">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-white rounded-3xl shadow-2xl mb-8 animate-pulse">
-            <FaGavel className="text-5xl text-emerald-600" />
+          <div className="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-3xl shadow-2xl mb-6 sm:mb-8 animate-pulse">
+            <FaGavel className="text-4xl sm:text-5xl text-emerald-600" />
           </div>
-          <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-white mb-4 sm:mb-6">
             MinSU Disciplinary System
           </h1>
-          <p className="text-xl md:text-2xl text-emerald-100 mb-4">
+          <p className="text-lg sm:text-xl md:text-2xl text-emerald-100 mb-2 sm:mb-4">
             Mindoro State University - Bongabong Campus
           </p>
-          <p className="text-lg text-emerald-200 max-w-2xl mx-auto mb-12">
+          <p className="text-base sm:text-lg text-emerald-200 max-w-2xl mx-auto mb-8 sm:mb-12 px-4">
             A modern, efficient, and transparent system for managing student disciplinary cases
           </p>
-          <div className="flex justify-center space-x-4">
+          <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4 px-4">
             <button
               onClick={() => setShowLoginModal(true)}
-              className="bg-white text-emerald-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-all shadow-2xl hover:scale-110 transform"
+              className="bg-white text-emerald-600 px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg hover:bg-emerald-50 transition-all shadow-2xl hover:scale-110 transform"
             >
               Get Started →
             </button>
             <button
               onClick={() => setShowFeaturesModal(true)}
-              className="bg-white/20 backdrop-blur-md text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/30 transition-all border-2 border-white/30 hover:scale-105 transform"
+              className="bg-white/20 backdrop-blur-md text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg hover:bg-white/30 transition-all border-2 border-white/30 hover:scale-105 transform"
             >
               Learn More
             </button>
@@ -190,7 +236,7 @@ export default function Landing() {
         </div>
 
         {/* Features Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-8 mt-12 sm:mt-20">
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all transform hover:scale-105 hover:shadow-2xl group">
             <div className="flex items-center justify-center w-16 h-16 bg-white rounded-2xl mb-6 group-hover:scale-110 transition-transform">
               <FaChartLine className="text-4xl text-emerald-600" />
@@ -378,27 +424,27 @@ export default function Landing() {
       {/* Login Modal */}
       {showLoginModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full animate-slideUp">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-slideUp">
             {/* Header */}
-            <div className="bg-emerald-600 p-8 rounded-t-3xl text-center relative">
+            <div className="bg-emerald-600 p-6 sm:p-8 rounded-t-3xl text-center relative">
               <button
                 onClick={() => {
                   setShowLoginModal(false)
                   setLoginError('')
                 }}
-                className="absolute top-4 right-4 text-white hover:text-gray-200 text-3xl"
+                className="absolute top-4 right-4 text-white hover:text-gray-200 text-2xl sm:text-3xl"
               >
                 ×
               </button>
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-xl mb-4">
-                <FaGavel className="text-4xl text-emerald-600" />
+              <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-2xl shadow-xl mb-4">
+                <FaGavel className="text-3xl sm:text-4xl text-emerald-600" />
               </div>
-              <h2 className="text-3xl font-bold text-white mb-2">MinSU Disciplinary System</h2>
-              <p className="text-emerald-100">Mindoro State University</p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">MinSU Disciplinary System</h2>
+              <p className="text-sm sm:text-base text-emerald-100">Mindoro State University</p>
             </div>
 
             {/* Body */}
-            <div className="p-8">
+            <div className="p-6 sm:p-8">
               <h3 className="text-2xl font-bold text-gray-900 mb-6">Sign In</h3>
 
               {loginError && (
@@ -448,7 +494,12 @@ export default function Landing() {
 
                 <div className="flex items-center justify-between">
                   <label className="flex items-center cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-emerald-600" />
+                    <input 
+                      type="checkbox" 
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer" 
+                    />
                     <span className="ml-2 text-sm text-gray-600">Remember me</span>
                   </label>
                   <button
@@ -560,21 +611,6 @@ export default function Landing() {
                       required
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-base font-medium text-gray-700 mb-2">
-                    Role
-                  </label>
-                  <select
-                    value={registerData.role}
-                    onChange={(e) => setRegisterData({ ...registerData, role: e.target.value })}
-                    className="w-full px-4 py-3 bg-emerald-50 border-0 rounded-xl text-gray-900 focus:ring-2 focus:ring-emerald-500 outline-none"
-                  >
-                    <option value="officer">Discipline Officer</option>
-                    <option value="admin">Administrator</option>
-                    <option value="staff">Staff</option>
-                  </select>
                 </div>
 
                 <div>

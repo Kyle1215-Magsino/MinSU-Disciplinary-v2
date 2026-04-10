@@ -50,10 +50,15 @@ export default function CaseManagement() {
       })
       
       // Add violation count and eligibility to each case
+      // Eligible if 1st or 2nd offense, Not eligible if 3rd offense or more
       const casesWithViolationCount = casesData.map(case_ => ({
         ...case_,
         violationCount: studentViolations[case_.student_id].count,
-        isEligibleForGoodMoral: studentViolations[case_.student_id].count === 1
+        offenseLevel: studentViolations[case_.student_id].count === 1 ? '1st Offense' : 
+                      studentViolations[case_.student_id].count === 2 ? '2nd Offense' : 
+                      studentViolations[case_.student_id].count === 3 ? '3rd Offense' : 
+                      `${studentViolations[case_.student_id].count}th Offense`,
+        isEligibleForGoodMoral: studentViolations[case_.student_id].count <= 2
       }))
       
       setCases(casesWithViolationCount)
@@ -333,20 +338,20 @@ export default function CaseManagement() {
       grow: 1,
     },
     {
-      name: 'Count',
-      selector: row => row.violationCount,
+      name: 'Offense',
+      selector: row => row.offenseLevel,
       sortable: true,
-      width: '90px',
+      width: '120px',
       center: true,
       cell: row => (
-        <span className={`px-2 py-1 rounded-full text-sm font-bold ${
+        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
           row.violationCount === 1 
             ? 'bg-green-100 text-green-800' 
             : row.violationCount === 2 
             ? 'bg-yellow-100 text-yellow-800' 
             : 'bg-red-100 text-red-800'
         }`}>
-          {row.violationCount}
+          {row.offenseLevel}
         </span>
       ),
     },
@@ -393,11 +398,11 @@ export default function CaseManagement() {
       cell: row => (
         <button
           onClick={() => openCaseDetails(row)}
-          className="flex items-center space-x-1 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
+          className="flex items-center justify-center space-x-1 px-2 sm:px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
           title="View Details"
         >
-          <FaEye />
-          <span className="text-sm font-medium">View</span>
+          <FaEye className="text-sm sm:text-base" />
+          <span className="text-xs sm:text-sm font-medium">View</span>
         </button>
       ),
     },
@@ -437,19 +442,19 @@ export default function CaseManagement() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Case Management</h2>
-          <p className="text-gray-600 mt-1">Review and manage disciplinary cases</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Case Management</h2>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Review and manage disciplinary cases</p>
         </div>
-        <div className="flex items-center space-x-2">
-          <FaFilter className="text-gray-500" />
+        <div className="flex items-center space-x-2 overflow-x-auto pb-2 sm:pb-0">
+          <FaFilter className="text-gray-500 flex-shrink-0" />
           {['all', 'pending', 'active', 'resolved'].map((status) => (
             <button
               key={status}
               onClick={() => setFilter(status)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                 filter === status
                   ? 'bg-emerald-600 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -528,7 +533,7 @@ export default function CaseManagement() {
               
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Violations</p>
+                  <p className="text-sm font-medium text-gray-600">Offense Level</p>
                   <span className={`inline-block px-4 py-2 rounded-full text-lg font-bold mt-1 ${
                     selectedCase.violationCount === 1 
                       ? 'bg-green-100 text-green-800' 
@@ -536,7 +541,7 @@ export default function CaseManagement() {
                       ? 'bg-yellow-100 text-yellow-800' 
                       : 'bg-red-100 text-red-800'
                   }`}>
-                    {selectedCase.violationCount} {selectedCase.violationCount === 1 ? 'Violation' : 'Violations'}
+                    {selectedCase.offenseLevel}
                   </span>
                 </div>
                 <div className="text-right">
@@ -559,8 +564,8 @@ export default function CaseManagement() {
                   <div>
                     <h4 className="font-bold text-red-900 mb-1">Good Moral Certificate Not Available</h4>
                     <p className="text-sm text-red-700">
-                      This student has {selectedCase.violationCount} violations and is not eligible for a Good Moral Certificate. 
-                      Students must have only 1 violation to be eligible.
+                      This student has reached their {selectedCase.offenseLevel} and is not eligible for a Good Moral Certificate. 
+                      Students must have 1st or 2nd offense only to be eligible.
                     </p>
                   </div>
                 </div>
@@ -575,7 +580,7 @@ export default function CaseManagement() {
                     <div>
                       <h4 className="font-bold text-green-900 mb-1">Eligible for Good Moral Certificate</h4>
                       <p className="text-sm text-green-700">
-                        This student has only 1 violation and is eligible to receive a Good Moral Certificate.
+                        This student is on their {selectedCase.offenseLevel} and is eligible to receive a Good Moral Certificate.
                       </p>
                     </div>
                   </div>

@@ -134,15 +134,15 @@ export default function Reports() {
   }))
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Reports & Analytics</h2>
-          <p className="text-gray-600 mt-1">View comprehensive disciplinary case statistics</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Reports & Analytics</h2>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">View comprehensive disciplinary case statistics</p>
         </div>
         <button 
           onClick={exportReport} 
-          className="flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-all hover:scale-105"
+          className="flex items-center justify-center space-x-2 px-4 sm:px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-all hover:scale-105 text-sm sm:text-base"
         >
           <FaDownload />
           <span>Export Report</span>
@@ -150,7 +150,7 @@ export default function Reports() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform">
           <div className="flex items-center justify-between">
             <div>
