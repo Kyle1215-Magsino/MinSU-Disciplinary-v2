@@ -1,0 +1,200 @@
+import { useState, useEffect } from 'react'
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore'
+import { db } from '../lib/firebase'
+import DataTable from 'react-data-table-component'
+import { useNavigate } from 'react-router-dom'
+import { FaChartBar, FaClock, FaSync, FaCheckCircle } from 'react-icons/fa'
+
+export default function Dashboard() {
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalCases: 0,
+    pendingCases: 0,
+    resolvedCases: 0,
+    activeCases: 0,
+  })
+  const [recentCases, setRecentCases] = useState([])
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [])
+
+  const fetchDashboardData = async () => {
+    setLoading(true)
+    try {
+      // Fetch all cases for accurate stats
+      const allCasesQuery = query(collection(db, 'disciplinary_cases'))
+      const allCasesSnapshot = await getDocs(allCasesQuery)
+      const allCases = allCasesSnapshot.docs.map(doc => doc.data())
+      
+      // Fetch recent cases
+      const q = query(
+        collection(db, 'disciplinary_cases'),
+        orderBy('created_at', 'desc'),
+        limit(10)
+      )
+      const querySnapshot = await getDocs(q)
+      const cases = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+
+      setRecentCases(cases)
+      setStats({
+        totalCases: allCases.length,
+        pendingCases: allCases.filter(c => c.status === 'pending').length,
+        resolvedCases: allCases.filter(c => c.status === 'resolved').length,
+        activeCases: allCases.filter(c => c.status === 'active').length,
+      })
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+    }
+    setLoading(false)
+  }
+
+  const columns = [
+    {
+      name: 'Case Number',
+      selector: row => row.case_number,
+      sortable: true,
+      width: '180px',
+      cell: row => <span className="font-semibold text-gray-900">{row.case_number}</span>
+    },
+    {
+      name: 'Description',
+      selector: row => row.description,
+      sortable: true,
+      grow: 2,
+      cell: row => (
+        <div className="py-2">
+          <p className="text-gray-700 line-clamp-2">{row.description}</p>
+        </div>
+      )
+    },
+    {
+      name: 'Status',
+      selector: row => row.status,
+      sortable: true,
+      width: '120px',
+      cell: row => (
+        <span
+          className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${
+            row.status === 'pending'
+              ? 'bg-yellow-100 text-yellow-800'
+              : row.status === 'active'
+              ? 'bg-orange-100 text-orange-800'
+              : 'bg-green-100 text-green-800'
+          }`}
+        >
+          {row.status}
+        </span>
+      ),
+    },
+  ]
+
+  const customStyles = {
+    headRow: {
+      style: {
+        backgroundColor: '#f9fafb',
+        borderBottom: '2px solid #e5e7eb',
+        fontWeight: '600',
+        fontSize: '13px',
+        color: '#374151',
+        minHeight: '48px',
+      },
+    },
+    rows: {
+      style: {
+        fontSize: '14px',
+        minHeight: '60px',
+        '&:hover': {
+          backgroundColor: '#f3f4f6',
+          cursor: 'pointer',
+        },
+      },
+    },
+    pagination: {
+      style: {
+        borderTop: '1px solid #e5e7eb',
+        minHeight: '56px',
+      },
+    },
+  }
+
+  const statCards = [
+    { label: 'Total Cases', value: stats.totalCases, color: 'bg-blue-500', icon: FaChartBar },
+    { label: 'Pending Cases', value: stats.pendingCases, color: 'bg-yellow-500', icon: FaClock },
+    { label: 'Active Cases', value: stats.activeCases, color: 'bg-orange-500', icon: FaSync },
+    { label: 'Resolved Cases', value: stats.resolvedCases, color: 'bg-green-500', icon: FaCheckCircle },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
+          <p className="text-gray-600 mt-1">Overview of disciplinary cases and activities</p>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {statCards.map((stat, index) => {
+          const IconComponent = stat.icon
+          return (
+            <div key={index} className="bg-white rounded-xl shadow-lg p-6 border-2 border-emerald-500 hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
+                </div>
+                <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center text-white`}>
+                  <IconComponent className="text-2xl" />
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Recent Cases DataTable */}
+      <div className="bg-white rounded-xl shadow-lg border-2 border-emerald-500 overflow-hidden">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Recent Cases</h3>
+            <p className="text-sm text-gray-500 mt-1">Latest disciplinary case submissions</p>
+          </div>
+          <button 
+            onClick={() => navigate('/app/cases')}
+            className="text-sm text-emerald-600 hover:text-emerald-700 font-semibold flex items-center space-x-1"
+          >
+            <span>View All</span>
+            <span>→</span>
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+          </div>
+        ) : recentCases.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">📋</div>
+            <p className="text-gray-500 font-medium">No cases reported yet</p>
+            <p className="text-sm text-gray-400 mt-2">Cases will appear here once reported</p>
+          </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={recentCases}
+            customStyles={customStyles}
+            pagination
+            paginationPerPage={5}
+            paginationRowsPerPageOptions={[5, 10, 15]}
+            highlightOnHover
+            pointerOnHover
+            onRowClicked={(row) => navigate('/app/cases')}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
