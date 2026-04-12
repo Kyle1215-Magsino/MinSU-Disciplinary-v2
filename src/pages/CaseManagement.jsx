@@ -524,12 +524,12 @@ export default function CaseManagement() {
       width: '140px',
       center: true,
       cell: row => (
-        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
           row.isEligibleForGoodMoral 
             ? 'bg-green-100 text-green-800' 
             : 'bg-red-100 text-red-800'
         }`}>
-          {row.isEligibleForGoodMoral ? 'âœ“ Eligible' : 'âœ— Not Eligible'}
+          {row.isEligibleForGoodMoral ? 'Eligible' : 'Not Eligible'}
         </span>
       ),
     },
@@ -719,12 +719,12 @@ export default function CaseManagement() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-600">Good Moral Status</p>
-                  <span className={`inline-block px-4 py-2 rounded-full text-sm font-bold mt-1 ${
+                  <span className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold mt-1 ${
                     selectedCase.isEligibleForGoodMoral 
                       ? 'bg-green-100 text-green-800' 
                       : 'bg-red-100 text-red-800'
                   }`}>
-                    {selectedCase.isEligibleForGoodMoral ? 'âœ“ Eligible' : 'âœ— Not Eligible'}
+                    {selectedCase.isEligibleForGoodMoral ? 'Eligible' : 'Not Eligible'}
                   </span>
                 </div>
               </div>
@@ -732,15 +732,12 @@ export default function CaseManagement() {
 
             {!selectedCase.isEligibleForGoodMoral && (
               <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
-                <div className="flex items-start space-x-3">
-                  <span className="text-2xl">âš ï¸</span>
-                  <div>
-                    <h4 className="font-bold text-red-900 mb-1">Good Moral Certificate Not Available</h4>
-                    <p className="text-sm text-red-700">
-                      This student has reached their {selectedCase.offenseLevel} and is not eligible for a Good Moral Certificate. 
-                      Students must have 1st or 2nd offense only to be eligible.
-                    </p>
-                  </div>
+                <div>
+                  <h4 className="font-bold text-red-900 mb-1">Good Moral Certificate Not Available</h4>
+                  <p className="text-sm text-red-700">
+                    This student has reached their {selectedCase.offenseLevel} and is not eligible for a Good Moral Certificate. 
+                    Students must have 1st or 2nd offense only to be eligible.
+                  </p>
                 </div>
               </div>
             )}
@@ -748,14 +745,11 @@ export default function CaseManagement() {
             {selectedCase.isEligibleForGoodMoral && (
               <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  <div className="flex items-start space-x-3 flex-1">
-                    <span className="text-2xl flex-shrink-0">âœ…</span>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-green-900 mb-1">Eligible for Good Moral Certificate</h4>
-                      <p className="text-sm text-green-700">
-                        This student is on their {selectedCase.offenseLevel} and is eligible to receive a Good Moral Certificate.
-                      </p>
-                    </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-green-900 mb-1">Eligible for Good Moral Certificate</h4>
+                    <p className="text-sm text-green-700">
+                      This student is on their {selectedCase.offenseLevel} and is eligible to receive a Good Moral Certificate.
+                    </p>
                   </div>
                   <button
                     onClick={() => printGoodMoralCertificate(selectedCase)}
