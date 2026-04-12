@@ -59,8 +59,8 @@ export default function Landing() {
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid))
       if (userDoc.exists() && userDoc.data().archived === true) {
         await signOut(auth)
-        setLoginError('This account has been archived. Please contact the administrator.')
-        toast.error('This account has been archived.')
+        setLoginError('This account has been disabled')
+        toast.error('This account has been disabled')
         setLoginLoading(false)
         return
       }
