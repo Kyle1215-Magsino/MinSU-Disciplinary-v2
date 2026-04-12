@@ -1,10 +1,10 @@
 ﻿import { useState, useEffect } from 'react'
-import { collection, query, orderBy, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { collection, query, orderBy, where, getDocs, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import toast from 'react-hot-toast'
 import Modal, { ConfirmModal } from '../components/Modal'
 import DataTable from 'react-data-table-component'
-import { FaEye, FaFilter, FaPrint, FaBroom } from 'react-icons/fa'
+import { FaEye, FaFilter, FaPrint, FaBroom, FaPlus, FaUser, FaIdCard, FaExclamationTriangle, FaFileAlt, FaCalendar, FaMapMarkerAlt, FaUserTie, FaSearch } from 'react-icons/fa'
 
 export default function CaseManagement() {
   const [cases, setCases] = useState([])
@@ -16,6 +16,22 @@ export default function CaseManagement() {
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [pendingStatusUpdate, setPendingStatusUpdate] = useState(null)
   const [mergingCases, setMergingCases] = useState(false)
+  
+  // Report Incident Modal States
+  const [showReportModal, setShowReportModal] = useState(false)
+  const [reportLoading, setReportLoading] = useState(false)
+  const [students, setStudents] = useState([])
+  const [filteredStudents, setFilteredStudents] = useState([])
+  const [showStudentDropdown, setShowStudentDropdown] = useState(false)
+  const [formData, setFormData] = useState({
+    student_name: '',
+    student_id: '',
+    violation_type: '',
+    description: '',
+    date_of_incident: '',
+    location: '',
+    reported_by: '',
+  })
 
   useEffect(() => {
     fetchCases()
@@ -175,6 +191,174 @@ export default function CaseManagement() {
       toast.error('Failed to merge cases. Please try again.')
     }
     setMergingCases(false)
+  }
+
+  // Report Incident Functions
+  const fetchStudents = async () => {
+    try {
+      const studentsQuery = query(collection(db, 'students'))
+      const studentsSnapshot = await getDocs(studentsQuery)
+      const studentsFromDB = studentsSnapshot.docs.map(doc => ({
+        name: doc.data().student_name,
+        id: doc.data().student_id,
+        course: doc.data().course,
+        year_level: doc.data().year_level,
+        offenseCount: 0
+      }))
+      
+      const casesQuery = query(collection(db, 'disciplinary_cases'))
+      const casesSnapshot = await getDocs(casesQuery)
+      const casesData = casesSnapshot.docs.map(doc => doc.data())
+      
+      const offenseCounts = {}
+      casesData.forEach(case_ => {
+        if (!offenseCounts[case_.student_id]) {
+          offenseCounts[case_.student_id] = 0
+        }
+        offenseCounts[case_.student_id]++
+      })
+      
+      const studentsWithOffenses = studentsFromDB.map(student => ({
+        ...student,
+        offenseCount: offenseCounts[student.id] || 0
+      }))
+      
+      setStudents(studentsWithOffenses)
+    } catch (error) {
+      console.error('Error fetching students:', error)
+      toast.error('Failed to load students')
+    }
+  }
+
+  const handleStudentNameChange = (e) => {
+    const value = e.target.value
+    setFormData({ ...formData, student_name: value, violation_type: '' })
+    
+    if (value.length > 0) {
+      const filtered = students.filter(student =>
+        student.name.toLowerCase().includes(value.toLowerCase()) ||
+        student.id.toLowerCase().includes(value.toLowerCase())
+      )
+      setFilteredStudents(filtered)
+      setShowStudentDropdown(true)
+    } else {
+      setFilteredStudents(students)
+      setShowStudentDropdown(students.length > 0)
+    }
+  }
+
+  const selectStudent = (student) => {
+    const offenseLevel = student.offenseCount + 1
+    const offenseText = offenseLevel === 1 ? '1st Offense' :
+                       offenseLevel === 2 ? '2nd Offense' :
+                       offenseLevel === 3 ? '3rd Offense' :
+                       `${offenseLevel}th Offense`
+    
+    setFormData({
+      ...formData,
+      student_name: student.name,
+      student_id: student.id,
+      violation_type: offenseLevel <= 3 ? offenseText : ''
+    })
+    setShowStudentDropdown(false)
+  }
+
+  const handleReportSubmit = async (e) => {
+    e.preventDefault()
+    setReportLoading(true)
+
+    try {
+      const q = query(
+        collection(db, 'disciplinary_cases'),
+        where('student_id', '==', formData.student_id)
+      )
+      const querySnapshot = await getDocs(q)
+      
+      if (!querySnapshot.empty) {
+        const existingCase = querySnapshot.docs[0]
+        const existingData = existingCase.data()
+        const offenseHistory = existingData.offense_history || []
+        
+        const newOffense = {
+          offense_level: formData.violation_type,
+          description: formData.description,
+          date_of_incident: formData.date_of_incident,
+          location: formData.location,
+          reported_by: formData.reported_by,
+          reported_at: new Date()
+        }
+        
+        offenseHistory.push(newOffense)
+        
+        await updateDoc(doc(db, 'disciplinary_cases', existingCase.id), {
+          violation_type: formData.violation_type,
+          description: formData.description,
+          date_of_incident: formData.date_of_incident,
+          location: formData.location,
+          reported_by: formData.reported_by,
+          offense_history: offenseHistory,
+          offense_count: offenseHistory.length,
+          status: 'pending',
+          updated_at: serverTimestamp()
+        })
+        
+        toast.success(`Case updated! ${formData.violation_type} added`)
+      } else {
+        const caseNumber = `CASE-${Date.now()}`
+        const offenseHistory = [{
+          offense_level: formData.violation_type,
+          description: formData.description,
+          date_of_incident: formData.date_of_incident,
+          location: formData.location,
+          reported_by: formData.reported_by,
+          reported_at: new Date()
+        }]
+        
+        await addDoc(collection(db, 'disciplinary_cases'), {
+          case_number: caseNumber,
+          student_name: formData.student_name,
+          student_id: formData.student_id,
+          violation_type: formData.violation_type,
+          description: formData.description,
+          date_of_incident: formData.date_of_incident,
+          location: formData.location,
+          reported_by: formData.reported_by,
+          offense_history: offenseHistory,
+          offense_count: 1,
+          status: 'pending',
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+        })
+
+        toast.success(`Incident reported successfully! Case #${caseNumber}`)
+      }
+      
+      setFormData({
+        student_name: '',
+        student_id: '',
+        violation_type: '',
+        description: '',
+        date_of_incident: '',
+        location: '',
+        reported_by: '',
+      })
+      setShowReportModal(false)
+      fetchCases()
+    } catch (error) {
+      console.error('Error submitting report:', error)
+      toast.error('Error submitting report. Please try again.')
+    }
+
+    setReportLoading(false)
+  }
+
+  const handleReportChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
+
+  const openReportModal = () => {
+    fetchStudents()
+    setShowReportModal(true)
   }
 
   const printGoodMoralCertificate = (studentCase) => {
@@ -612,6 +796,14 @@ export default function CaseManagement() {
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <button
+            onClick={openReportModal}
+            className="flex items-center justify-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-all text-sm"
+            title="Report new incident"
+          >
+            <FaPlus />
+            <span>Report Incident</span>
+          </button>
+          <button
             onClick={mergeDuplicateCases}
             disabled={mergingCases}
             className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
@@ -869,6 +1061,210 @@ export default function CaseManagement() {
         cancelText="Cancel"
         type="info"
       />
+
+      {/* Report Incident Modal */}
+      <Modal
+        isOpen={showReportModal}
+        onClose={() => {
+          setShowReportModal(false)
+          setFormData({
+            student_name: '',
+            student_id: '',
+            violation_type: '',
+            description: '',
+            date_of_incident: '',
+            location: '',
+            reported_by: '',
+          })
+        }}
+        title="Report New Incident"
+        size="lg"
+      >
+        <form onSubmit={handleReportSubmit} className="space-y-6">
+          {/* Student Information */}
+          <div>
+            <h3 className="text-base font-bold text-gray-900 mb-3">Student Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Student Name *</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="student_name"
+                    value={formData.student_name}
+                    onChange={handleStudentNameChange}
+                    onFocus={() => {
+                      if (formData.student_name.length === 0 && students.length > 0) {
+                        setFilteredStudents(students)
+                        setShowStudentDropdown(true)
+                      }
+                    }}
+                    onBlur={() => setTimeout(() => setShowStudentDropdown(false), 200)}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    placeholder="Search or enter student name"
+                    required
+                    autoComplete="off"
+                  />
+                  {showStudentDropdown && filteredStudents.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border-2 border-emerald-500 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {filteredStudents.map((student, index) => {
+                        const nextOffense = student.offenseCount + 1
+                        const nextOffenseText = nextOffense === 1 ? '1st Offense' :
+                                               nextOffense === 2 ? '2nd Offense' :
+                                               nextOffense === 3 ? '3rd Offense' :
+                                               `${nextOffense}th Offense`
+                        const badgeColor = nextOffense === 1 ? 'bg-green-100 text-green-800' :
+                                          nextOffense === 2 ? 'bg-yellow-100 text-yellow-800' :
+                                          'bg-red-100 text-red-800'
+                        
+                        return (
+                          <div
+                            key={index}
+                            onClick={() => selectStudent(student)}
+                            className="px-3 py-2 hover:bg-emerald-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <p className="font-semibold text-gray-900 text-sm">{student.name}</p>
+                                <p className="text-xs text-gray-500">ID: {student.id} • {student.offenseCount} offense(s)</p>
+                              </div>
+                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${badgeColor}`}>
+                                Next: {nextOffenseText}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Student ID *</label>
+                <input
+                  type="text"
+                  name="student_id"
+                  value={formData.student_id}
+                  onChange={handleReportChange}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="e.g., 2024-00001"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Violation Details */}
+          <div>
+            <h3 className="text-base font-bold text-gray-900 mb-3">Violation Details</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Offense Level *</label>
+                <select
+                  name="violation_type"
+                  value={formData.violation_type}
+                  onChange={handleReportChange}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  required
+                >
+                  <option value="">Select offense level</option>
+                  <option value="1st Offense">1st Offense</option>
+                  <option value="2nd Offense">2nd Offense</option>
+                  <option value="3rd Offense">3rd Offense</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Description *</label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleReportChange}
+                  rows="4"
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
+                  placeholder="Provide detailed description of the incident..."
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Incident Information */}
+          <div>
+            <h3 className="text-base font-bold text-gray-900 mb-3">Incident Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Date of Incident *</label>
+                <input
+                  type="date"
+                  name="date_of_incident"
+                  value={formData.date_of_incident}
+                  onChange={handleReportChange}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Location *</label>
+                <input
+                  type="text"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleReportChange}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="e.g., Room 101, Library"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Reporter Information */}
+          <div>
+            <h3 className="text-base font-bold text-gray-900 mb-3">Reporter Information</h3>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Reported By *</label>
+              <input
+                type="text"
+                name="reported_by"
+                value={formData.reported_by}
+                onChange={handleReportChange}
+                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                placeholder="Your name"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex space-x-3 pt-4 border-t-2 border-gray-200">
+            <button
+              type="button"
+              onClick={() => {
+                setShowReportModal(false)
+                setFormData({
+                  student_name: '',
+                  student_id: '',
+                  violation_type: '',
+                  description: '',
+                  date_of_incident: '',
+                  location: '',
+                  reported_by: '',
+                })
+              }}
+              className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={reportLoading}
+              className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
+            >
+              {reportLoading ? 'Submitting...' : 'Submit Report'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

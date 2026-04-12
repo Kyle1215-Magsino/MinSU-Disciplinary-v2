@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { signOut } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import { useAuth } from '../lib/useAuth'
-import { FaChartBar, FaFileAlt, FaFolderOpen, FaChartLine, FaSignOutAlt, FaGavel, FaBars, FaTimes, FaUsers, FaUserGraduate } from 'react-icons/fa'
+import { FaChartBar, FaFolderOpen, FaChartLine, FaSignOutAlt, FaGavel, FaBars, FaTimes, FaUsers, FaUserGraduate } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 import { ConfirmModal } from './Modal'
 
@@ -31,7 +31,6 @@ export default function Layout({ user }) {
 
   const navItems = [
     { path: '/app/dashboard', label: 'Dashboard', icon: FaChartBar },
-    { path: '/app/report-incident', label: 'Report Incident', icon: FaFileAlt },
     { path: '/app/cases', label: 'Case Management', icon: FaFolderOpen },
     { path: '/app/reports', label: 'Reports', icon: FaChartLine },
     { path: '/app/students', label: 'Students', icon: FaUserGraduate },

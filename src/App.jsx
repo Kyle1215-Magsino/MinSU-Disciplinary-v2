@@ -5,7 +5,6 @@ import { auth } from './lib/firebase'
 import { Toaster } from 'react-hot-toast'
 import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
-import IncidentReport from './pages/IncidentReport'
 import CaseManagement from './pages/CaseManagement'
 import Reports from './pages/Reports'
 import UserManagement from './pages/UserManagement'
@@ -77,7 +76,6 @@ function App() {
         >
           <Route index element={<Navigate to="/app/dashboard" />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="report-incident" element={<IncidentReport />} />
           <Route path="cases" element={<CaseManagement />} />
           <Route path="reports" element={<Reports />} />
           <Route path="students" element={<StudentManagement />} />
