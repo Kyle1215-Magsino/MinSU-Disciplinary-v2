@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { collection, addDoc, serverTimestamp, query, getDocs, where, doc, updateDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useNavigate } from 'react-router-dom'
@@ -342,12 +342,12 @@ export default function IncidentReport() {
               </div>
               {students.length > 0 && (
                 <p className="text-xs text-gray-500 mt-1">
-                  💡 Click to see all students or start typing to search by name/ID
+                   Click to see all students or start typing to search by name/ID
                 </p>
               )}
               {students.length === 0 && (
                 <p className="text-xs text-yellow-600 mt-1">
-                  ⚠️ No students in database. Add students in Student Management first.
+                   No students in database. Add students in Student Management first.
                 </p>
               )}
             </div>
@@ -400,7 +400,7 @@ export default function IncidentReport() {
               </div>
               {formData.student_name && students.some(s => s.name === formData.student_name) && (
                 <p className="text-xs text-emerald-600 mt-1 font-medium">
-                  💡 Recommended: {
+                   Recommended: {
                     (() => {
                       const student = students.find(s => s.name === formData.student_name)
                       const nextOffense = student ? student.offenseCount + 1 : 1
@@ -555,7 +555,6 @@ export default function IncidentReport() {
         size="md"
       >
         <div className="text-center py-6">
-          <div className="text-6xl mb-4">✅</div>
           <h3 className="text-2xl font-bold text-gray-900 mb-4">Incident Reported Successfully!</h3>
           <div className="bg-emerald-50 border-2 border-emerald-500 rounded-xl p-6 mb-6">
             <p className="text-sm text-gray-600 mb-2">Your Case Number:</p>

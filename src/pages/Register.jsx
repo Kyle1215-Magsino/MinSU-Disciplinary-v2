@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../lib/firebase'
@@ -71,7 +71,7 @@ export default function Register() {
           onClick={() => navigate('/')}
           className="text-white hover:text-blue-100 mb-8 flex items-center space-x-2 text-lg"
         >
-          <span>←</span>
+          <span></span>
           <span>Back to Home</span>
         </button>
 
@@ -198,11 +198,10 @@ export default function Register() {
       <Modal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
-        title="✅ Registration Successful"
+        title="Registration Successful"
         size="md"
       >
         <div className="text-center py-6">
-          <div className="text-6xl mb-4">🎉</div>
           <h3 className="text-2xl font-bold text-gray-900 mb-4">Welcome to MinSU!</h3>
           <p className="text-gray-700 mb-6">
             Your account has been created successfully. You will be redirected to the dashboard shortly.
@@ -215,11 +214,10 @@ export default function Register() {
       <Modal
         isOpen={showErrorModal}
         onClose={() => setShowErrorModal(false)}
-        title="❌ Registration Failed"
+        title="Registration Failed"
         size="md"
       >
         <div className="text-center py-6">
-          <div className="text-6xl mb-4">⚠️</div>
           <h3 className="text-xl font-bold text-gray-900 mb-4">Registration Error</h3>
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <p className="text-red-700">{errorMessage}</p>

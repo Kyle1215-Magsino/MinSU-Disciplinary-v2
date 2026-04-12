@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'
 import { auth } from '../lib/firebase'
@@ -70,7 +70,7 @@ export default function Login() {
           onClick={() => navigate('/')}
           className="text-white hover:text-blue-100 mb-8 flex items-center space-x-2 text-lg"
         >
-          <span>←</span>
+          <span></span>
           <span>Back to Home</span>
         </button>
 
@@ -164,11 +164,10 @@ export default function Login() {
       <Modal
         isOpen={showErrorModal}
         onClose={() => setShowErrorModal(false)}
-        title="❌ Login Failed"
+        title="Login Failed"
         size="md"
       >
         <div className="text-center py-6">
-          <div className="text-6xl mb-4">🔒</div>
           <h3 className="text-xl font-bold text-gray-900 mb-4">Authentication Error</h3>
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <p className="text-red-700">{errorMessage}</p>
@@ -200,12 +199,11 @@ export default function Login() {
           setShowForgotPasswordModal(false)
           setResetEmail('')
         }}
-        title="🔑 Reset Password"
+        title="Reset Password"
         size="md"
       >
         <div className="py-4">
           <div className="text-center mb-6">
-            <div className="text-5xl mb-4">📧</div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Forgot Your Password?</h3>
             <p className="text-gray-600">
               Enter your email address and we'll send you a link to reset your password.
@@ -252,11 +250,10 @@ export default function Login() {
       <Modal
         isOpen={showResetSuccessModal}
         onClose={() => setShowResetSuccessModal(false)}
-        title="✅ Email Sent"
+        title="Email Sent"
         size="md"
       >
         <div className="text-center py-6">
-          <div className="text-6xl mb-4">📬</div>
           <h3 className="text-2xl font-bold text-gray-900 mb-4">Check Your Email</h3>
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
             <p className="text-green-700">

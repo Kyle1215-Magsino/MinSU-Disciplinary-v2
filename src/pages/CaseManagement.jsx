@@ -430,7 +430,7 @@ export default function CaseManagement() {
       <body>
         <div class="certificate">
           <div class="header">
-            <div class="logo">⚖️</div>
+            <div class="logo"></div>
             <div class="university-name">MINDORO STATE UNIVERSITY</div>
             <div class="campus-name">Bongabong Campus</div>
             <div class="office-name">Office of Student Affairs</div>
@@ -801,9 +801,8 @@ export default function CaseManagement() {
             {/* Offense History */}
             {selectedCase.offense_history && selectedCase.offense_history.length > 1 && (
               <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-                <h4 className="font-bold text-blue-900 mb-3 flex items-center space-x-2">
-                  <span>ðŸ“‹</span>
-                  <span>Offense History ({selectedCase.offense_history.length} total offenses)</span>
+                <h4 className="font-bold text-blue-900 mb-3">
+                  Offense History ({selectedCase.offense_history.length} total offenses)
                 </h4>
                 <div className="space-y-3">
                   {selectedCase.offense_history.map((offense, index) => (
@@ -822,8 +821,8 @@ export default function CaseManagement() {
                       </div>
                       <p className="text-sm text-gray-700 mb-1">{offense.description}</p>
                       <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>ðŸ“ {offense.location}</span>
-                        <span>ðŸ‘¤ {offense.reported_by}</span>
+                        <span>{offense.location}</span>
+                        <span>{offense.reported_by}</span>
                       </div>
                     </div>
                   ))}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { seedDatabase } from '../utils/seedData'
 import { useNavigate } from 'react-router-dom'
 
@@ -18,7 +18,6 @@ export default function SeedData() {
     <div className="min-h-screen bg-gradient-to-br from-minsu-primary to-minsu-secondary flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full">
         <div className="text-center mb-8">
-          <div className="text-6xl mb-4">🌱</div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Seed Database</h1>
           <p className="text-gray-600">Add sample disciplinary cases to your Firestore database</p>
         </div>
@@ -28,9 +27,9 @@ export default function SeedData() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
               <h3 className="font-semibold text-gray-900 mb-3">This will add 5 sample cases:</h3>
               <ul className="space-y-2 text-sm text-gray-700">
-                <li>✅ 1 Pending case (Academic Dishonesty)</li>
-                <li>✅ 2 Active cases (Misconduct, Disrespect)</li>
-                <li>✅ 2 Resolved cases (Attendance, Dress Code)</li>
+                <li> 1 Pending case (Academic Dishonesty)</li>
+                <li> 2 Active cases (Misconduct, Disrespect)</li>
+                <li> 2 Resolved cases (Attendance, Dress Code)</li>
               </ul>
             </div>
 
@@ -60,7 +59,6 @@ export default function SeedData() {
           <div className="text-center space-y-6">
             {result.success ? (
               <>
-                <div className="text-6xl mb-4">🎉</div>
                 <h2 className="text-2xl font-bold text-green-600">Success!</h2>
                 <p className="text-gray-700">
                   Added {result.count} sample cases to your database.
@@ -74,7 +72,6 @@ export default function SeedData() {
               </>
             ) : (
               <>
-                <div className="text-6xl mb-4">❌</div>
                 <h2 className="text-2xl font-bold text-red-600">Error</h2>
                 <p className="text-gray-700">{result.error}</p>
                 <div className="space-y-3">

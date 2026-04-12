@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { collection, query, getDocs, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { useState, useEffect, useMemo } from 'react'
+import { collection, query, getDocs, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import toast from 'react-hot-toast'
 import DataTable from 'react-data-table-component'
@@ -24,22 +24,20 @@ export default function StudentManagement() {
   })
 
   useEffect(() => {
-    fetchStudents()
-  }, [])
-
-  const fetchStudents = async () => {
-    setLoading(true)
-    try {
-      const q = query(collection(db, 'students'))
-      const querySnapshot = await getDocs(q)
+    // Use real-time listener for instant updates
+    const q = query(collection(db, 'students'))
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const studentsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       setStudents(studentsData)
-    } catch (error) {
+      setLoading(false)
+    }, (error) => {
       console.error('Error fetching students:', error)
       toast.error('Failed to load students')
-    }
-    setLoading(false)
-  }
+      setLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [])
 
   const handleAddStudent = async (e) => {
     e.preventDefault()
@@ -62,7 +60,7 @@ export default function StudentManagement() {
         course: '',
         year_level: '1st Year'
       })
-      fetchStudents()
+      // No need to call fetchStudents - real-time listener will update
     } catch (error) {
       console.error('Error adding student:', error)
       if (error.code === 'permission-denied') {
@@ -89,7 +87,7 @@ export default function StudentManagement() {
       toast.success('Student updated successfully!')
       setShowEditModal(false)
       setSelectedStudent(null)
-      fetchStudents()
+      // No need to call fetchStudents - real-time listener will update
     } catch (error) {
       console.error('Error updating student:', error)
       toast.error('Failed to update student')
@@ -104,14 +102,15 @@ export default function StudentManagement() {
       toast.success('Student deleted successfully!')
       setShowDeleteModal(false)
       setSelectedStudent(null)
-      fetchStudents()
+      // No need to call fetchStudents - real-time listener will update
     } catch (error) {
       console.error('Error deleting student:', error)
       toast.error('Failed to delete student')
     }
   }
 
-  const columns = [
+  // Memoize columns to prevent re-renders
+  const columns = useMemo(() => [
     {
       name: 'Student ID',
       selector: row => row.student_id,
@@ -177,9 +176,10 @@ export default function StudentManagement() {
         </div>
       ),
     },
-  ]
+  ], [])
 
-  const customStyles = {
+  // Memoize custom styles
+  const customStyles = useMemo(() => ({
     headRow: {
       style: {
         backgroundColor: '#f9fafb',
@@ -205,7 +205,7 @@ export default function StudentManagement() {
         minHeight: '56px',
       },
     },
-  }
+  }), [])
 
   return (
     <div className="space-y-4 sm:space-y-6">

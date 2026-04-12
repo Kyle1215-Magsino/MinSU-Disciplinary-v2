@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'firebase/auth'
 import { auth, db } from '../lib/firebase'
@@ -232,7 +232,7 @@ export default function Landing() {
                 className="bg-gradient-to-r from-emerald-600 to-green-500 text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-2xl transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
               >
                 <span>Get Started</span>
-                <span>→</span>
+                <span></span>
               </button>
               <button
                 onClick={() => setShowFeaturesModal(true)}
@@ -491,12 +491,12 @@ export default function Landing() {
             </div>
             <div>
               <h4 className="font-semibold text-gray-900 mb-2">Office of Student Affairs</h4>
-              <p className="text-gray-700">📧 Email: osas@minsu.edu.ph</p>
-              <p className="text-gray-700">📞 Phone: (043) XXX-XXXX</p>
+              <p className="text-gray-700"> Email: osas@minsu.edu.ph</p>
+              <p className="text-gray-700"> Phone: (043) XXX-XXXX</p>
             </div>
             <div>
               <h4 className="font-semibold text-gray-900 mb-2">Technical Support</h4>
-              <p className="text-gray-700">📧 Email: it@minsu.edu.ph</p>
+              <p className="text-gray-700"> Email: it@minsu.edu.ph</p>
               <p className="text-gray-700">Developer: Paolo Amor P. Palma</p>
             </div>
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mt-4">
@@ -522,7 +522,7 @@ export default function Landing() {
                 }}
                 className="absolute top-4 right-4 text-white hover:text-gray-200 text-2xl sm:text-3xl"
               >
-                ×
+                X
               </button>
               <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-2xl shadow-xl mb-4">
                 <FaGavel className="text-3xl sm:text-4xl text-emerald-600" />
@@ -650,7 +650,7 @@ export default function Landing() {
                 }}
                 className="absolute top-4 right-4 text-white hover:text-gray-200 text-3xl"
               >
-                ×
+                X
               </button>
               <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-xl mb-4">
                 <FaGavel className="text-4xl text-emerald-600" />
@@ -800,11 +800,10 @@ export default function Landing() {
                   onClick={() => setShowForgotPasswordModal(false)}
                   className="text-gray-400 hover:text-gray-600 text-2xl"
                 >
-                  ×
+                  X
                 </button>
               </div>
               <div className="text-center mb-6">
-                <div className="text-5xl mb-4">📧</div>
                 <p className="text-gray-600">
                   Enter your email address and we'll send you a link to reset your password.
                 </p>
@@ -839,7 +838,6 @@ export default function Landing() {
       {showResetSuccessModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
-            <div className="text-6xl mb-4">✅</div>
             <h3 className="text-2xl font-bold text-gray-900 mb-4">Email Sent!</h3>
             <p className="text-gray-600 mb-6">
               Check your inbox for the password reset link.
@@ -868,7 +866,7 @@ function Modal({ onClose, title, children }) {
             onClick={onClose}
             className="text-white hover:text-gray-200 text-3xl leading-none"
           >
-            ×
+            X
           </button>
         </div>
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-100px)]">

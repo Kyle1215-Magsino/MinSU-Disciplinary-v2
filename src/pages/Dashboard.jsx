@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import DataTable from 'react-data-table-component'
@@ -168,7 +168,7 @@ export default function Dashboard() {
             className="text-xs sm:text-sm text-emerald-600 hover:text-emerald-700 font-semibold flex items-center space-x-1 self-start sm:self-auto"
           >
             <span>View All</span>
-            <span>→</span>
+            <span></span>
           </button>
         </div>
 
@@ -178,7 +178,6 @@ export default function Dashboard() {
           </div>
         ) : recentCases.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-6xl mb-4">📋</div>
             <p className="text-gray-500 font-medium">No cases reported yet</p>
             <p className="text-sm text-gray-400 mt-2">Cases will appear here once reported</p>
           </div>
