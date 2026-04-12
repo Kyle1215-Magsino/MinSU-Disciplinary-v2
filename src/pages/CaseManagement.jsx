@@ -647,8 +647,7 @@ export default function CaseManagement() {
           </div>
         ) : filteredCases.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-6xl mb-4">ðŸ“‹</div>
-            <p className="text-gray-500 font-medium">No cases found</p>
+            <p className="text-gray-500 font-medium text-lg mb-2">No cases found</p>
             <p className="text-sm text-gray-400 mt-2">
               {filter === 'all' ? 'No cases have been reported yet' : `No ${filter} cases found`}
             </p>
@@ -840,7 +839,7 @@ export default function CaseManagement() {
                     onClick={() => handleStatusChange(selectedCase.id, 'active')}
                     className="flex-1 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition-colors"
                   >
-                    ðŸ”„ Mark as Active
+                    Mark as Active
                   </button>
                 )}
                 {selectedCase.status !== 'resolved' && (
@@ -848,7 +847,7 @@ export default function CaseManagement() {
                     onClick={() => handleStatusChange(selectedCase.id, 'resolved')}
                     className="flex-1 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors"
                   >
-                    âœ… Mark as Resolved
+                    Mark as Resolved
                   </button>
                 )}
               </div>
