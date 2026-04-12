@@ -13,6 +13,12 @@ service cloud.firestore {
       allow read, write: if isActiveUser();
     }
     
+    // Students collection
+    match /students/{studentId} {
+      // Allow active authenticated users to read and write
+      allow read, write: if isActiveUser();
+    }
+    
     // Users collection
     match /users/{userId} {
       // Allow authenticated users to read any user profile

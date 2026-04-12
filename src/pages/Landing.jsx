@@ -4,7 +4,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswor
 import { auth, db } from '../lib/firebase'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
 import toast from 'react-hot-toast'
-import { FaGavel, FaChartLine, FaFileAlt, FaShieldAlt, FaClock, FaCheckCircle, FaUsers, FaLock, FaEnvelope, FaKey } from 'react-icons/fa'
+import { FaGavel, FaChartLine, FaFileAlt, FaShieldAlt, FaClock, FaCheckCircle, FaUsers, FaLock, FaEnvelope, FaKey, FaEye, FaEyeSlash } from 'react-icons/fa'
 
 export default function Landing() {
   const [showAboutModal, setShowAboutModal] = useState(false)
@@ -21,6 +21,7 @@ export default function Landing() {
   const [loginLoading, setLoginLoading] = useState(false)
   const [loginError, setLoginError] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   // Register state
   const [registerData, setRegisterData] = useState({
@@ -31,6 +32,8 @@ export default function Landing() {
   })
   const [registerLoading, setRegisterLoading] = useState(false)
   const [registerError, setRegisterError] = useState('')
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false)
+  const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] = useState(false)
 
   // Reset password state
   const [resetEmail, setResetEmail] = useState('')
@@ -160,42 +163,42 @@ export default function Landing() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-600 via-green-500 to-teal-500">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-green-50">
       {/* Navigation */}
-      <nav className="bg-white/10 backdrop-blur-lg border-b border-white/20 shadow-lg">
+      <nav className="bg-white/80 backdrop-blur-lg border-b border-emerald-100 shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-3 sm:py-4">
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-xl flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform">
-                <FaGavel className="text-xl sm:text-2xl text-emerald-600" />
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-600 to-green-500 rounded-xl flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform">
+                <FaGavel className="text-2xl text-white" />
               </div>
               <div>
-                <h1 className="text-base sm:text-xl font-bold text-white">MinSU</h1>
-                <p className="text-xs text-emerald-100">Disciplinary System</p>
+                <h1 className="text-xl font-bold text-gray-900">MinSU Guardian</h1>
+                <p className="text-xs text-emerald-600 font-medium">Protecting Campus Integrity</p>
               </div>
             </div>
-            <div className="flex items-center space-x-2 sm:space-x-6">
+            <div className="flex items-center space-x-6">
               <button
                 onClick={() => setShowAboutModal(true)}
-                className="text-white hover:text-emerald-100 font-medium transition-colors text-xs sm:text-base hidden sm:block"
+                className="hidden md:block text-gray-700 hover:text-emerald-600 font-medium transition-colors"
               >
                 About
               </button>
               <button
                 onClick={() => setShowFeaturesModal(true)}
-                className="text-white hover:text-emerald-100 font-medium transition-colors text-xs sm:text-base hidden sm:block"
+                className="hidden md:block text-gray-700 hover:text-emerald-600 font-medium transition-colors"
               >
                 Features
               </button>
               <button
                 onClick={() => setShowContactModal(true)}
-                className="text-white hover:text-emerald-100 font-medium transition-colors text-xs sm:text-base hidden sm:block"
+                className="hidden md:block text-gray-700 hover:text-emerald-600 font-medium transition-colors"
               >
                 Contact
               </button>
               <button
                 onClick={() => setShowLoginModal(true)}
-                className="bg-white text-emerald-600 px-3 sm:px-6 py-2 rounded-lg font-semibold hover:bg-emerald-50 transition-all shadow-lg transform hover:scale-105 text-xs sm:text-base"
+                className="bg-gradient-to-r from-emerald-600 to-green-500 text-white px-6 py-2.5 rounded-lg font-semibold hover:shadow-lg transition-all transform hover:scale-105"
               >
                 Sign In
               </button>
@@ -205,126 +208,211 @@ export default function Landing() {
       </nav>
 
       {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-20">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-3xl shadow-2xl mb-6 sm:mb-8 animate-pulse">
-            <FaGavel className="text-4xl sm:text-5xl text-emerald-600" />
-          </div>
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-white mb-4 sm:mb-6">
-            MinSU Disciplinary System
-          </h1>
-          <p className="text-lg sm:text-xl md:text-2xl text-emerald-100 mb-2 sm:mb-4">
-            Mindoro State University - Bongabong Campus
-          </p>
-          <p className="text-base sm:text-lg text-emerald-200 max-w-2xl mx-auto mb-8 sm:mb-12 px-4">
-            A modern, efficient, and transparent system for managing student disciplinary cases
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4 px-4">
-            <button
-              onClick={() => setShowLoginModal(true)}
-              className="bg-white text-emerald-600 px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg hover:bg-emerald-50 transition-all shadow-2xl hover:scale-110 transform"
-            >
-              Get Started →
-            </button>
-            <button
-              onClick={() => setShowFeaturesModal(true)}
-              className="bg-white/20 backdrop-blur-md text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg hover:bg-white/30 transition-all border-2 border-white/30 hover:scale-105 transform"
-            >
-              Learn More
-            </button>
-          </div>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left Content */}
+          <div className="space-y-8">
+            <div className="inline-block">
+              <span className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full text-sm font-semibold">
+                Mindoro State University - Bongabong Campus
+              </span>
+            </div>
+            
+            <h1 className="text-5xl md:text-6xl font-bold text-gray-900 leading-tight">
+              Protecting <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-500">Campus</span> Integrity
+            </h1>
+            
+            <p className="text-xl text-gray-600 leading-relaxed">
+              Empowering fair and transparent student conduct management with smart tracking, real-time insights, and seamless case resolution.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                onClick={() => setShowLoginModal(true)}
+                className="bg-gradient-to-r from-emerald-600 to-green-500 text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-2xl transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
+              >
+                <span>Get Started</span>
+                <span>→</span>
+              </button>
+              <button
+                onClick={() => setShowFeaturesModal(true)}
+                className="bg-white text-emerald-600 px-8 py-4 rounded-xl font-bold text-lg border-2 border-emerald-200 hover:border-emerald-400 hover:shadow-lg transition-all"
+              >
+                Learn More
+              </button>
+            </div>
 
-        {/* Features Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-8 mt-12 sm:mt-20">
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all transform hover:scale-105 hover:shadow-2xl group">
-            <div className="flex items-center justify-center w-16 h-16 bg-white rounded-2xl mb-6 group-hover:scale-110 transition-transform">
-              <FaChartLine className="text-4xl text-emerald-600" />
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-6 pt-8">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-emerald-600">100%</div>
+                <div className="text-sm text-gray-600 mt-1">Digital</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-emerald-600">24/7</div>
+                <div className="text-sm text-gray-600 mt-1">Access</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-emerald-600">Secure</div>
+                <div className="text-sm text-gray-600 mt-1">Data</div>
+              </div>
             </div>
-            <h3 className="text-xl font-bold text-white mb-3">Real-time Dashboard</h3>
-            <p className="text-emerald-100">
-              Monitor all disciplinary cases with live statistics and comprehensive analytics
-            </p>
           </div>
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all transform hover:scale-105 hover:shadow-2xl group">
-            <div className="flex items-center justify-center w-16 h-16 bg-white rounded-2xl mb-6 group-hover:scale-110 transition-transform">
-              <FaFileAlt className="text-4xl text-emerald-600" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">Easy Reporting</h3>
-            <p className="text-emerald-100">
-              Submit incident reports online with automatic case number generation
-            </p>
-          </div>
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all transform hover:scale-105 hover:shadow-2xl group">
-            <div className="flex items-center justify-center w-16 h-16 bg-white rounded-2xl mb-6 group-hover:scale-110 transition-transform">
-              <FaShieldAlt className="text-4xl text-emerald-600" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">Secure & Private</h3>
-            <p className="text-emerald-100">
-              Protected with Firebase authentication and encrypted data storage
-            </p>
-          </div>
-        </div>
 
-        {/* Stats Section */}
-        <div className="mt-20 bg-white/10 backdrop-blur-md rounded-3xl p-12 border border-white/20">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
-            <div className="group">
-              <div className="flex items-center justify-center mb-4">
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <FaCheckCircle className="text-3xl text-emerald-600" />
-                </div>
+          {/* Right Content - Feature Cards */}
+          <div className="grid grid-cols-2 gap-6">
+            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 border border-emerald-100">
+              <div className="w-14 h-14 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
+                <FaChartLine className="text-2xl text-emerald-600" />
               </div>
-              <div className="text-4xl font-bold text-white mb-2">100%</div>
-              <div className="text-emerald-100">Digital</div>
+              <h3 className="font-bold text-gray-900 mb-2">Real-time Dashboard</h3>
+              <p className="text-sm text-gray-600">Monitor cases with live statistics</p>
             </div>
-            <div className="group">
-              <div className="flex items-center justify-center mb-4">
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <FaClock className="text-3xl text-emerald-600" />
-                </div>
+
+            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 border border-emerald-100 mt-8">
+              <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mb-4">
+                <FaFileAlt className="text-2xl text-green-600" />
               </div>
-              <div className="text-4xl font-bold text-white mb-2">24/7</div>
-              <div className="text-emerald-100">Access</div>
+              <h3 className="font-bold text-gray-900 mb-2">Easy Reporting</h3>
+              <p className="text-sm text-gray-600">Submit incidents online instantly</p>
             </div>
-            <div className="group">
-              <div className="flex items-center justify-center mb-4">
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <FaChartLine className="text-3xl text-emerald-600" />
-                </div>
+
+            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 border border-emerald-100">
+              <div className="w-14 h-14 bg-teal-100 rounded-xl flex items-center justify-center mb-4">
+                <FaShieldAlt className="text-2xl text-teal-600" />
               </div>
-              <div className="text-4xl font-bold text-white mb-2">Fast</div>
-              <div className="text-emerald-100">Processing</div>
+              <h3 className="font-bold text-gray-900 mb-2">Secure & Private</h3>
+              <p className="text-sm text-gray-600">Protected with encryption</p>
             </div>
-            <div className="group">
-              <div className="flex items-center justify-center mb-4">
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <FaLock className="text-3xl text-emerald-600" />
-                </div>
+
+            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 border border-emerald-100 mt-8">
+              <div className="w-14 h-14 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
+                <FaUsers className="text-2xl text-emerald-600" />
               </div>
-              <div className="text-4xl font-bold text-white mb-2">Secure</div>
-              <div className="text-emerald-100">Data</div>
+              <h3 className="font-bold text-gray-900 mb-2">User Friendly</h3>
+              <p className="text-sm text-gray-600">Intuitive interface design</p>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Features Section */}
+      <div className="bg-white py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Powerful Features</h2>
+            <p className="text-xl text-gray-600">Everything you need to manage disciplinary cases efficiently</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center p-8 rounded-2xl hover:bg-emerald-50 transition-all">
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-600 to-green-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <FaCheckCircle className="text-3xl text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Case Tracking</h3>
+              <p className="text-gray-600">Track cases from report to resolution with status updates</p>
+            </div>
+
+            <div className="text-center p-8 rounded-2xl hover:bg-emerald-50 transition-all">
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-600 to-green-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <FaClock className="text-3xl text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Quick Access</h3>
+              <p className="text-gray-600">Access student records and case history instantly</p>
+            </div>
+
+            <div className="text-center p-8 rounded-2xl hover:bg-emerald-50 transition-all">
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-600 to-green-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <FaLock className="text-3xl text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Data Security</h3>
+              <p className="text-gray-600">Enterprise-grade security with Firebase</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* CTA Section */}
+      <div className="bg-gradient-to-r from-emerald-600 to-green-500 py-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl font-bold text-white mb-6">Ready to Get Started?</h2>
+          <p className="text-xl text-emerald-100 mb-8">
+            Join MinSU Guardian today and streamline your case management process
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={() => setShowLoginModal(true)}
+              className="bg-white text-emerald-600 px-8 py-4 rounded-xl font-bold text-lg hover:shadow-2xl transition-all transform hover:scale-105"
+            >
+              Sign In Now
+            </button>
+            <button
+              onClick={() => setShowRegisterModal(true)}
+              className="bg-emerald-700 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-emerald-800 transition-all"
+            >
+              Create Account
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Footer */}
-      <footer className="bg-white/10 backdrop-blur-md border-t border-white/20 mt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center text-emerald-100">
-            <p className="mb-2">© 2024 Mindoro State University - Bongabong Campus</p>
-            <p className="text-sm">Developed by Paolo Amor P. Palma</p>
+      <footer className="bg-gray-900 text-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-3 gap-8 mb-8">
+            <div>
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
+                  <FaGavel className="text-xl text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold">MinSU Guardian</h3>
+                  <p className="text-xs text-gray-400">Protecting Campus Integrity</p>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm">
+                Modern disciplinary case management for Mindoro State University - Bongabong Campus
+              </p>
+            </div>
+
+            <div>
+              <h4 className="font-bold mb-4">Quick Links</h4>
+              <div className="space-y-2">
+                <button onClick={() => setShowAboutModal(true)} className="block text-gray-400 hover:text-white transition-colors text-sm">
+                  About Us
+                </button>
+                <button onClick={() => setShowFeaturesModal(true)} className="block text-gray-400 hover:text-white transition-colors text-sm">
+                  Features
+                </button>
+                <button onClick={() => setShowContactModal(true)} className="block text-gray-400 hover:text-white transition-colors text-sm">
+                  Contact
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-bold mb-4">Contact Info</h4>
+              <div className="space-y-2 text-sm text-gray-400">
+                <p>Mindoro State University</p>
+                <p>Bongabong Campus</p>
+                <p>Oriental Mindoro</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-800 pt-8 text-center text-gray-400 text-sm">
+            <p>© 2024 Mindoro State University - Bongabong Campus. All rights reserved.</p>
+            <p className="mt-2">Developed by Paolo Amor P. Palma</p>
           </div>
         </div>
       </footer>
 
       {/* About Modal */}
       {showAboutModal && (
-        <Modal onClose={() => setShowAboutModal(false)} title="About MinSU Disciplinary System">
+        <Modal onClose={() => setShowAboutModal(false)} title="About MinSU Guardian">
           <div className="space-y-4">
             <p className="text-gray-700">
-              The MinSU Disciplinary System is a comprehensive web-based platform designed to streamline 
+              MinSU Guardian is a comprehensive web-based platform designed to streamline 
               the management of student disciplinary cases at Mindoro State University - Bongabong Campus.
             </p>
             <h4 className="font-semibold text-gray-900 mt-4">Our Mission</h4>
@@ -439,8 +527,8 @@ export default function Landing() {
               <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-2xl shadow-xl mb-4">
                 <FaGavel className="text-3xl sm:text-4xl text-emerald-600" />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">MinSU Disciplinary System</h2>
-              <p className="text-sm sm:text-base text-emerald-100">Mindoro State University</p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">MinSU Guardian</h2>
+              <p className="text-sm sm:text-base text-emerald-100">Protecting Campus Integrity</p>
             </div>
 
             {/* Body */}
@@ -482,13 +570,20 @@ export default function Landing() {
                       <FaKey className="text-gray-400" />
                     </div>
                     <input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 bg-emerald-50 border-0 rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="w-full pl-12 pr-12 py-3 bg-emerald-50 border-0 rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 outline-none"
                       placeholder="••••••••"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
                   </div>
                 </div>
 
@@ -622,13 +717,20 @@ export default function Landing() {
                       <FaKey className="text-gray-400" />
                     </div>
                     <input
-                      type="password"
+                      type={showRegisterPassword ? "text" : "password"}
                       value={registerData.password}
                       onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 bg-emerald-50 border-0 rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="w-full pl-12 pr-12 py-3 bg-emerald-50 border-0 rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 outline-none"
                       placeholder="••••••••"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600"
+                    >
+                      {showRegisterPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
                 </div>
@@ -642,13 +744,20 @@ export default function Landing() {
                       <FaKey className="text-gray-400" />
                     </div>
                     <input
-                      type="password"
+                      type={showRegisterConfirmPassword ? "text" : "password"}
                       value={registerData.confirmPassword}
                       onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 bg-emerald-50 border-0 rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="w-full pl-12 pr-12 py-3 bg-emerald-50 border-0 rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 outline-none"
                       placeholder="••••••••"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterConfirmPassword(!showRegisterConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600"
+                    >
+                      {showRegisterConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
                   </div>
                 </div>
 

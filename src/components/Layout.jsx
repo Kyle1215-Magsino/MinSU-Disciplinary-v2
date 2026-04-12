@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { signOut } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import { useAuth } from '../lib/useAuth'
-import { FaChartBar, FaFileAlt, FaFolderOpen, FaChartLine, FaSignOutAlt, FaGavel, FaBars, FaTimes, FaUsers } from 'react-icons/fa'
+import { FaChartBar, FaFileAlt, FaFolderOpen, FaChartLine, FaSignOutAlt, FaGavel, FaBars, FaTimes, FaUsers, FaUserGraduate } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 import { ConfirmModal } from './Modal'
 
@@ -34,6 +34,7 @@ export default function Layout({ user }) {
     { path: '/app/report-incident', label: 'Report Incident', icon: FaFileAlt },
     { path: '/app/cases', label: 'Case Management', icon: FaFolderOpen },
     { path: '/app/reports', label: 'Reports', icon: FaChartLine },
+    { path: '/app/students', label: 'Students', icon: FaUserGraduate },
   ]
 
   // Add User Management for admins only
@@ -60,8 +61,8 @@ export default function Layout({ user }) {
                 <FaGavel />
               </div>
               <div>
-                <h1 className="text-sm sm:text-xl font-bold text-white">MinSU Disciplinary System</h1>
-                <p className="text-xs text-emerald-100 hidden sm:block">Mindoro State University</p>
+                <h1 className="text-sm sm:text-xl font-bold text-white">MinSU Guardian</h1>
+                <p className="text-xs text-emerald-100 hidden sm:block">Protecting Campus Integrity</p>
               </div>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">

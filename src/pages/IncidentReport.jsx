@@ -28,26 +28,56 @@ export default function IncidentReport() {
 
   const fetchStudents = async () => {
     try {
-      const q = query(collection(db, 'disciplinary_cases'))
-      const querySnapshot = await getDocs(q)
-      const casesData = querySnapshot.docs.map(doc => doc.data())
+      // Fetch from students collection
+      const studentsQuery = query(collection(db, 'students'))
+      const studentsSnapshot = await getDocs(studentsQuery)
+      const studentsFromDB = studentsSnapshot.docs.map(doc => ({
+        name: doc.data().student_name,
+        id: doc.data().student_id,
+        course: doc.data().course,
+        year_level: doc.data().year_level,
+        offenseCount: 0
+      }))
       
-      // Get unique students with offense count
-      const uniqueStudents = {}
+      // Fetch from disciplinary cases to get offense counts
+      const casesQuery = query(collection(db, 'disciplinary_cases'))
+      const casesSnapshot = await getDocs(casesQuery)
+      const casesData = casesSnapshot.docs.map(doc => doc.data())
+      
+      // Count offenses per student
+      const offenseCounts = {}
       casesData.forEach(case_ => {
-        if (!uniqueStudents[case_.student_id]) {
-          uniqueStudents[case_.student_id] = {
-            name: case_.student_name,
-            id: case_.student_id,
-            offenseCount: 0
-          }
+        if (!offenseCounts[case_.student_id]) {
+          offenseCounts[case_.student_id] = 0
         }
-        uniqueStudents[case_.student_id].offenseCount++
+        offenseCounts[case_.student_id]++
       })
       
-      setStudents(Object.values(uniqueStudents))
+      // Merge students with their offense counts
+      const studentsWithOffenses = studentsFromDB.map(student => ({
+        ...student,
+        offenseCount: offenseCounts[student.id] || 0
+      }))
+      
+      // Also add students from cases who might not be in students collection
+      const studentIdsInDB = new Set(studentsFromDB.map(s => s.id))
+      casesData.forEach(case_ => {
+        if (!studentIdsInDB.has(case_.student_id)) {
+          studentsWithOffenses.push({
+            name: case_.student_name,
+            id: case_.student_id,
+            course: 'N/A',
+            year_level: 'N/A',
+            offenseCount: offenseCounts[case_.student_id] || 0
+          })
+          studentIdsInDB.add(case_.student_id)
+        }
+      })
+      
+      setStudents(studentsWithOffenses)
     } catch (error) {
       console.error('Error fetching students:', error)
+      toast.error('Failed to load students')
     }
   }
 
@@ -57,12 +87,30 @@ export default function IncidentReport() {
     
     if (value.length > 0) {
       const filtered = students.filter(student =>
-        student.name.toLowerCase().includes(value.toLowerCase())
+        student.name.toLowerCase().includes(value.toLowerCase()) ||
+        student.id.toLowerCase().includes(value.toLowerCase())
       )
       setFilteredStudents(filtered)
       setShowStudentDropdown(true)
     } else {
-      setShowStudentDropdown(false)
+      // Show all students when input is empty
+      setFilteredStudents(students)
+      setShowStudentDropdown(students.length > 0)
+    }
+  }
+
+  const handleStudentInputFocus = () => {
+    // Show all students when focusing on the input
+    if (formData.student_name.length === 0 && students.length > 0) {
+      setFilteredStudents(students)
+      setShowStudentDropdown(true)
+    } else if (formData.student_name.length > 0) {
+      const filtered = students.filter(student =>
+        student.name.toLowerCase().includes(formData.student_name.toLowerCase()) ||
+        student.id.toLowerCase().includes(formData.student_name.toLowerCase())
+      )
+      setFilteredStudents(filtered)
+      setShowStudentDropdown(true)
     }
   }
 
@@ -150,10 +198,10 @@ export default function IncidentReport() {
                   name="student_name"
                   value={formData.student_name}
                   onChange={handleStudentNameChange}
-                  onFocus={() => {
-                    if (formData.student_name.length > 0 && filteredStudents.length > 0) {
-                      setShowStudentDropdown(true)
-                    }
+                  onFocus={handleStudentInputFocus}
+                  onBlur={() => {
+                    // Delay hiding dropdown to allow click on items
+                    setTimeout(() => setShowStudentDropdown(false), 200)
                   }}
                   className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
                   placeholder="Search or enter student name"
@@ -180,15 +228,22 @@ export default function IncidentReport() {
                           onClick={() => selectStudent(student)}
                           className="px-4 py-3 hover:bg-emerald-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <FaUser className="text-emerald-600 flex-shrink-0" />
-                              <div>
-                                <p className="font-semibold text-gray-900">{student.name}</p>
-                                <p className="text-xs text-gray-500">ID: {student.id} • {student.offenseCount} previous offense{student.offenseCount !== 1 ? 's' : ''}</p>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start space-x-3 flex-1 min-w-0">
+                              <FaUser className="text-emerald-600 flex-shrink-0 mt-1" />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-gray-900 truncate">{student.name}</p>
+                                <p className="text-xs text-gray-500">
+                                  ID: {student.id}
+                                  {student.course !== 'N/A' && ` • ${student.course}`}
+                                  {student.year_level !== 'N/A' && ` • ${student.year_level}`}
+                                </p>
+                                <p className="text-xs text-gray-600 mt-1">
+                                  {student.offenseCount} previous offense{student.offenseCount !== 1 ? 's' : ''}
+                                </p>
                               </div>
                             </div>
-                            <span className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ml-2 ${badgeColor}`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap flex-shrink-0 ${badgeColor}`}>
                               Next: {nextOffenseText}
                             </span>
                           </div>
@@ -208,7 +263,12 @@ export default function IncidentReport() {
               </div>
               {students.length > 0 && (
                 <p className="text-xs text-gray-500 mt-1">
-                  💡 Start typing to search existing students or enter a new name
+                  💡 Click to see all students or start typing to search by name/ID
+                </p>
+              )}
+              {students.length === 0 && (
+                <p className="text-xs text-yellow-600 mt-1">
+                  ⚠️ No students in database. Add students in Student Management first.
                 </p>
               )}
             </div>
@@ -217,20 +277,15 @@ export default function IncidentReport() {
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Student ID *
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaIdCard className="text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  name="student_id"
-                  value={formData.student_id}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-                  placeholder="e.g., 2024-00001"
-                  required
-                />
-              </div>
+              <input
+                type="text"
+                name="student_id"
+                value={formData.student_id}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                placeholder="e.g., 2024-00001"
+                required
+              />
             </div>
           </div>
         </div>

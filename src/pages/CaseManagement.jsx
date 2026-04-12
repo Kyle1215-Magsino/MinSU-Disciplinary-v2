@@ -114,6 +114,8 @@ export default function CaseManagement() {
       <!DOCTYPE html>
       <html>
         <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Good Moral Certificate - ${studentCase.student_name}</title>
           <style>
             @page {
@@ -127,127 +129,280 @@ export default function CaseManagement() {
             }
             body {
               font-family: 'Times New Roman', serif;
-              padding: 60px 80px;
+              padding: 20px;
               background: white;
               color: #000;
             }
             .certificate {
-              border: 8px double #10b981;
-              padding: 40px;
+              border: 4px double #10b981;
+              padding: 20px;
               position: relative;
-              min-height: 90vh;
+              min-height: 85vh;
+              background: white;
             }
             .header {
               text-align: center;
-              margin-bottom: 40px;
-              border-bottom: 3px solid #10b981;
-              padding-bottom: 20px;
+              margin-bottom: 20px;
+              border-bottom: 2px solid #10b981;
+              padding-bottom: 15px;
             }
             .logo {
-              width: 100px;
-              height: 100px;
-              margin: 0 auto 15px;
+              width: 60px;
+              height: 60px;
+              margin: 0 auto 10px;
               background: #10b981;
               border-radius: 50%;
               display: flex;
               align-items: center;
               justify-content: center;
-              font-size: 48px;
+              font-size: 28px;
               color: white;
             }
             .university-name {
-              font-size: 28px;
+              font-size: 18px;
               font-weight: bold;
               color: #10b981;
               margin-bottom: 5px;
             }
             .campus-name {
-              font-size: 18px;
+              font-size: 14px;
               color: #666;
-              margin-bottom: 10px;
+              margin-bottom: 5px;
             }
             .office-name {
-              font-size: 16px;
+              font-size: 12px;
               color: #888;
               font-style: italic;
             }
             .certificate-title {
               text-align: center;
-              font-size: 36px;
+              font-size: 20px;
               font-weight: bold;
               color: #10b981;
-              margin: 40px 0 30px;
+              margin: 20px 0 15px;
               text-transform: uppercase;
-              letter-spacing: 3px;
+              letter-spacing: 1px;
             }
             .content {
               text-align: justify;
-              line-height: 2;
-              font-size: 16px;
-              margin: 30px 0;
+              line-height: 1.6;
+              font-size: 14px;
+              margin: 15px 0;
             }
             .student-name {
-              font-size: 24px;
+              font-size: 18px;
               font-weight: bold;
               color: #10b981;
               text-decoration: underline;
               text-align: center;
-              margin: 20px 0;
+              margin: 15px 0;
             }
             .student-id {
               text-align: center;
-              font-size: 18px;
+              font-size: 14px;
               color: #666;
-              margin-bottom: 30px;
+              margin-bottom: 15px;
             }
             .footer {
-              margin-top: 60px;
+              margin-top: 30px;
               display: flex;
               justify-content: space-between;
+              flex-wrap: wrap;
+              gap: 20px;
             }
             .signature-block {
               text-align: center;
-              width: 45%;
+              flex: 1;
+              min-width: 120px;
             }
             .signature-line {
               border-top: 2px solid #000;
-              margin-top: 60px;
-              padding-top: 10px;
+              margin-top: 40px;
+              padding-top: 8px;
               font-weight: bold;
+              font-size: 12px;
             }
             .signature-title {
-              font-size: 14px;
+              font-size: 11px;
               color: #666;
-              margin-top: 5px;
+              margin-top: 3px;
             }
             .date {
               text-align: right;
-              margin-top: 40px;
+              margin-top: 20px;
               font-style: italic;
+              font-size: 13px;
             }
             .seal {
               position: absolute;
-              bottom: 100px;
-              left: 80px;
-              width: 120px;
-              height: 120px;
-              border: 3px solid #10b981;
+              bottom: 60px;
+              left: 20px;
+              width: 80px;
+              height: 80px;
+              border: 2px solid #10b981;
               border-radius: 50%;
               display: flex;
               align-items: center;
               justify-content: center;
-              font-size: 12px;
+              font-size: 10px;
               text-align: center;
               color: #10b981;
               font-weight: bold;
               transform: rotate(-15deg);
+              line-height: 1.2;
             }
+            .button-container {
+              text-align: center;
+              margin-top: 20px;
+              padding: 15px;
+              background: #f3f4f6;
+              border-radius: 8px;
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+            }
+            .btn {
+              padding: 12px 20px;
+              border: none;
+              border-radius: 8px;
+              font-size: 14px;
+              cursor: pointer;
+              font-weight: 600;
+              transition: all 0.3s;
+              width: 100%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 8px;
+            }
+            .btn-print {
+              background: #10b981;
+              color: white;
+              box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+            }
+            .btn-print:hover {
+              background: #059669;
+              box-shadow: 0 4px 6px rgba(16, 185, 129, 0.4);
+              transform: translateY(-1px);
+            }
+            .btn-print:active {
+              transform: translateY(0);
+            }
+            .btn-close {
+              background: #6b7280;
+              color: white;
+              box-shadow: 0 2px 4px rgba(107, 114, 128, 0.3);
+            }
+            .btn-close:hover {
+              background: #4b5563;
+              box-shadow: 0 4px 6px rgba(107, 114, 128, 0.4);
+              transform: translateY(-1px);
+            }
+            .btn-close:active {
+              transform: translateY(0);
+            }
+            
+            /* Desktop styles */
+            @media (min-width: 768px) {
+              body {
+                padding: 60px 80px;
+              }
+              .certificate {
+                border: 8px double #10b981;
+                padding: 40px;
+                min-height: 90vh;
+              }
+              .logo {
+                width: 100px;
+                height: 100px;
+                font-size: 48px;
+                margin-bottom: 15px;
+              }
+              .header {
+                margin-bottom: 40px;
+                border-bottom: 3px solid #10b981;
+                padding-bottom: 20px;
+              }
+              .university-name {
+                font-size: 28px;
+              }
+              .campus-name {
+                font-size: 18px;
+                margin-bottom: 10px;
+              }
+              .office-name {
+                font-size: 16px;
+              }
+              .certificate-title {
+                font-size: 36px;
+                margin: 40px 0 30px;
+                letter-spacing: 3px;
+              }
+              .content {
+                line-height: 2;
+                font-size: 16px;
+                margin: 30px 0;
+              }
+              .student-name {
+                font-size: 24px;
+                margin: 20px 0;
+              }
+              .student-id {
+                font-size: 18px;
+                margin-bottom: 30px;
+              }
+              .footer {
+                margin-top: 60px;
+              }
+              .signature-block {
+                width: 45%;
+              }
+              .signature-line {
+                margin-top: 60px;
+                padding-top: 10px;
+                font-size: 14px;
+              }
+              .signature-title {
+                font-size: 14px;
+                margin-top: 5px;
+              }
+              .date {
+                margin-top: 40px;
+                font-size: inherit;
+              }
+              .seal {
+                bottom: 100px;
+                left: 80px;
+                width: 120px;
+                height: 120px;
+                border: 3px solid #10b981;
+                font-size: 12px;
+              }
+              .button-container {
+                flex-direction: row;
+                justify-content: center;
+              }
+              .btn {
+                padding: 12px 24px;
+                font-size: 16px;
+                width: auto;
+              }
+            }
+            
             @media print {
               body {
                 padding: 40px 60px;
               }
+              .certificate {
+                border: 8px double #10b981;
+                padding: 40px;
+              }
               .no-print {
-                display: none;
+                display: none !important;
+              }
+              .seal {
+                bottom: 100px;
+                left: 80px;
               }
             }
           </style>
@@ -264,7 +419,7 @@ export default function CaseManagement() {
             <div class="certificate-title">Certificate of Good Moral Character</div>
             
             <div class="content">
-              <p style="text-indent: 50px;">
+              <p style="text-indent: 30px;">
                 This is to certify that <strong>${studentCase.student_name}</strong>, 
                 a bonafide student of Mindoro State University - Bongabong Campus, 
                 has demonstrated good moral character and conduct during their stay in this institution.
@@ -275,7 +430,7 @@ export default function CaseManagement() {
             <div class="student-id">Student ID: ${studentCase.student_id}</div>
             
             <div class="content">
-              <p style="text-indent: 50px;">
+              <p style="text-indent: 30px;">
                 Based on our records, the above-named student has maintained satisfactory 
                 disciplinary standing and has shown respect for university rules and regulations. 
                 This certificate is issued upon request for whatever legal purpose it may serve.
@@ -302,12 +457,14 @@ export default function CaseManagement() {
             </div>
           </div>
           
-          <div class="no-print" style="text-align: center; margin-top: 20px;">
-            <button onclick="window.print()" style="padding: 12px 24px; background: #10b981; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-right: 10px;">
-              Print Certificate
+          <div class="no-print button-container">
+            <button onclick="window.print()" class="btn btn-print">
+              <span style="font-size: 18px;">🖨️</span>
+              <span>Print Certificate</span>
             </button>
-            <button onclick="window.close()" style="padding: 12px 24px; background: #6b7280; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">
-              Close
+            <button onclick="window.close()" class="btn btn-close">
+              <span style="font-size: 18px;">✕</span>
+              <span>Close Window</span>
             </button>
           </div>
         </body>
