@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "seed": "node seed-database.js"
+    "seed": "node seed-database.js",
+    "merge-cases": "node merge-duplicate-cases.js"
   },
   "dependencies": {
     "firebase": "^10.8.0",

@@ -261,7 +261,7 @@ export default function Landing() {
 
           {/* Right Content - Feature Cards */}
           <div className="grid grid-cols-2 gap-6">
-            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 border border-emerald-100">
+            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 border border-emerald-100 flex flex-col h-full">
               <div className="w-14 h-14 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
                 <FaChartLine className="text-2xl text-emerald-600" />
               </div>
@@ -269,7 +269,7 @@ export default function Landing() {
               <p className="text-sm text-gray-600">Monitor cases with live statistics</p>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 border border-emerald-100 mt-8">
+            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 border border-emerald-100 flex flex-col h-full">
               <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mb-4">
                 <FaFileAlt className="text-2xl text-green-600" />
               </div>
@@ -277,7 +277,7 @@ export default function Landing() {
               <p className="text-sm text-gray-600">Submit incidents online instantly</p>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 border border-emerald-100">
+            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 border border-emerald-100 flex flex-col h-full">
               <div className="w-14 h-14 bg-teal-100 rounded-xl flex items-center justify-center mb-4">
                 <FaShieldAlt className="text-2xl text-teal-600" />
               </div>
@@ -285,7 +285,7 @@ export default function Landing() {
               <p className="text-sm text-gray-600">Protected with encryption</p>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 border border-emerald-100 mt-8">
+            <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 border border-emerald-100 flex flex-col h-full">
               <div className="w-14 h-14 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
                 <FaUsers className="text-2xl text-emerald-600" />
               </div>

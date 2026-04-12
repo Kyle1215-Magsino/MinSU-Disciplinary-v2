@@ -62,7 +62,7 @@ export default function Layout({ user }) {
               </div>
               <div>
                 <h1 className="text-sm sm:text-xl font-bold text-white">MinSU Guardian</h1>
-                <p className="text-xs text-emerald-100 hidden sm:block">Protecting Campus Integrity</p>
+                <p className="text-xs text-emerald-100">Protecting Campus Integrity</p>
               </div>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { collection, addDoc, serverTimestamp, query, getDocs } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, query, getDocs, where, doc, updateDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { FaUser, FaIdCard, FaExclamationTriangle, FaFileAlt, FaCalendar, FaMapMarkerAlt, FaUserTie, FaSearch } from 'react-icons/fa'
 import Modal from '../components/Modal'
 
 export default function IncidentReport() {
+  const navigate = useNavigate()
   const [formData, setFormData] = useState({
     student_name: '',
     student_id: '',
@@ -135,20 +137,97 @@ export default function IncidentReport() {
     e.preventDefault()
     setLoading(true)
 
-    const caseNumber = `CASE-${Date.now()}`
-    
     try {
-      await addDoc(collection(db, 'disciplinary_cases'), {
-        case_number: caseNumber,
-        ...formData,
-        status: 'pending',
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp(),
-      })
+      // Check if student already has a case
+      const q = query(
+        collection(db, 'disciplinary_cases'),
+        where('student_id', '==', formData.student_id)
+      )
+      const querySnapshot = await getDocs(q)
+      
+      if (!querySnapshot.empty) {
+        // Student already has a case - update it
+        const existingCase = querySnapshot.docs[0]
+        const existingData = existingCase.data()
+        const caseNumber = existingData.case_number
+        
+        // Get current offense history
+        const offenseHistory = existingData.offense_history || []
+        
+        // Add new offense to history
+        const newOffense = {
+          offense_level: formData.violation_type,
+          description: formData.description,
+          date_of_incident: formData.date_of_incident,
+          location: formData.location,
+          reported_by: formData.reported_by,
+          reported_at: new Date()
+        }
+        
+        offenseHistory.push(newOffense)
+        
+        // Update the case with new offense
+        await updateDoc(doc(db, 'disciplinary_cases', existingCase.id), {
+          violation_type: formData.violation_type, // Update to latest offense level
+          description: formData.description, // Update to latest description
+          date_of_incident: formData.date_of_incident, // Update to latest date
+          location: formData.location, // Update to latest location
+          reported_by: formData.reported_by, // Update to latest reporter
+          offense_history: offenseHistory,
+          offense_count: offenseHistory.length,
+          status: 'pending', // Reset to pending for review
+          updated_at: serverTimestamp()
+        })
+        
+        setGeneratedCaseNumber(caseNumber)
+        setShowSuccessModal(true)
+        toast.success(`Case updated! ${formData.violation_type} added to Case #${caseNumber}`)
+        
+        // Redirect to case management after 2 seconds
+        setTimeout(() => {
+          navigate('/app/cases')
+        }, 2000)
+        
+      } else {
+        // No existing case - create new one
+        const caseNumber = `CASE-${Date.now()}`
+        
+        // Create offense history with first offense
+        const offenseHistory = [{
+          offense_level: formData.violation_type,
+          description: formData.description,
+          date_of_incident: formData.date_of_incident,
+          location: formData.location,
+          reported_by: formData.reported_by,
+          reported_at: new Date()
+        }]
+        
+        await addDoc(collection(db, 'disciplinary_cases'), {
+          case_number: caseNumber,
+          student_name: formData.student_name,
+          student_id: formData.student_id,
+          violation_type: formData.violation_type,
+          description: formData.description,
+          date_of_incident: formData.date_of_incident,
+          location: formData.location,
+          reported_by: formData.reported_by,
+          offense_history: offenseHistory,
+          offense_count: 1,
+          status: 'pending',
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
+        })
 
-      setGeneratedCaseNumber(caseNumber)
-      setShowSuccessModal(true)
-      toast.success(`Incident reported successfully! Case #${caseNumber}`)
+        setGeneratedCaseNumber(caseNumber)
+        setShowSuccessModal(true)
+        toast.success(`Incident reported successfully! Case #${caseNumber}`)
+        
+        // Redirect to case management after 2 seconds
+        setTimeout(() => {
+          navigate('/app/cases')
+        }, 2000)
+      }
+      
       setFormData({
         student_name: '',
         student_id: '',
@@ -483,13 +562,16 @@ export default function IncidentReport() {
             <p className="text-3xl font-bold text-emerald-600">{generatedCaseNumber}</p>
           </div>
           <p className="text-gray-700 mb-6">
-            The incident has been recorded in the system. The disciplinary officer will review the case shortly.
+            The incident has been recorded in the system. Redirecting to Case Management...
           </p>
           <button
-            onClick={() => setShowSuccessModal(false)}
+            onClick={() => {
+              setShowSuccessModal(false)
+              navigate('/app/cases')
+            }}
             className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-all transform hover:scale-105"
           >
-            Close
+            Go to Case Management
           </button>
         </div>
       </Modal>

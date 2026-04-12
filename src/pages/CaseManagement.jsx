@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
-import { collection, query, orderBy, where, getDocs, doc, updateDoc } from 'firebase/firestore'
+﻿import { useState, useEffect } from 'react'
+import { collection, query, orderBy, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import toast from 'react-hot-toast'
 import Modal, { ConfirmModal } from '../components/Modal'
 import DataTable from 'react-data-table-component'
-import { FaEye, FaFilter, FaPrint } from 'react-icons/fa'
+import { FaEye, FaFilter, FaPrint, FaBroom } from 'react-icons/fa'
 
 export default function CaseManagement() {
   const [cases, setCases] = useState([])
@@ -15,6 +15,7 @@ export default function CaseManagement() {
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [pendingStatusUpdate, setPendingStatusUpdate] = useState(null)
+  const [mergingCases, setMergingCases] = useState(false)
 
   useEffect(() => {
     fetchCases()
@@ -35,34 +36,31 @@ export default function CaseManagement() {
       const querySnapshot = await getDocs(q)
       const casesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       
-      // Calculate violation count per student
-      const studentViolations = {}
-      casesData.forEach(case_ => {
-        if (!studentViolations[case_.student_id]) {
-          studentViolations[case_.student_id] = {
-            count: 0,
-            name: case_.student_name,
-            cases: []
-          }
+      // Add offense information to each case
+      const casesWithOffenseLevel = casesData.map(case_ => {
+        // Get offense count from the case data
+        let offenseCount = case_.offense_count || 1
+        
+        // Parse offense level from violation_type if it exists
+        let offenseLevel = case_.violation_type || '1st Offense'
+        
+        // Extract number from offense level (e.g., "3rd Offense" -> 3)
+        const offenseMatch = offenseLevel.match(/(\d+)(st|nd|rd|th)/)
+        if (offenseMatch) {
+          offenseCount = parseInt(offenseMatch[1])
         }
-        studentViolations[case_.student_id].count++
-        studentViolations[case_.student_id].cases.push(case_)
+        
+        return {
+          ...case_,
+          violationCount: offenseCount,
+          offenseNumber: offenseCount,
+          offenseLevel: offenseLevel,
+          isEligibleForGoodMoral: offenseCount <= 2 // Only 1st and 2nd offense are eligible
+        }
       })
       
-      // Add violation count and eligibility to each case
-      // Eligible if 1st or 2nd offense, Not eligible if 3rd offense or more
-      const casesWithViolationCount = casesData.map(case_ => ({
-        ...case_,
-        violationCount: studentViolations[case_.student_id].count,
-        offenseLevel: studentViolations[case_.student_id].count === 1 ? '1st Offense' : 
-                      studentViolations[case_.student_id].count === 2 ? '2nd Offense' : 
-                      studentViolations[case_.student_id].count === 3 ? '3rd Offense' : 
-                      `${studentViolations[case_.student_id].count}th Offense`,
-        isEligibleForGoodMoral: studentViolations[case_.student_id].count <= 2
-      }))
-      
-      setCases(casesWithViolationCount)
-      setFilteredCases(casesWithViolationCount)
+      setCases(casesWithOffenseLevel)
+      setFilteredCases(casesWithOffenseLevel)
     } catch (error) {
       console.error('Error fetching cases:', error)
     }
@@ -102,6 +100,83 @@ export default function CaseManagement() {
     setShowDetailsModal(true)
   }
 
+  const mergeDuplicateCases = async () => {
+    setMergingCases(true)
+    try {
+      const q = query(collection(db, 'disciplinary_cases'), orderBy('created_at', 'asc'))
+      const querySnapshot = await getDocs(q)
+      const allCases = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      
+      // Group cases by student_id
+      const studentCases = {}
+      allCases.forEach(case_ => {
+        if (!studentCases[case_.student_id]) {
+          studentCases[case_.student_id] = []
+        }
+        studentCases[case_.student_id].push(case_)
+      })
+      
+      let mergedCount = 0
+      
+      // Process each student's cases
+      for (const [studentId, studentCaseList] of Object.entries(studentCases)) {
+        if (studentCaseList.length > 1) {
+          // Sort by creation date (oldest first)
+          studentCaseList.sort((a, b) => {
+            const dateA = a.created_at?.toDate?.() || new Date(0)
+            const dateB = b.created_at?.toDate?.() || new Date(0)
+            return dateA - dateB
+          })
+          
+          // Keep the first (oldest) case as the main case
+          const mainCase = studentCaseList[0]
+          const duplicateCases = studentCaseList.slice(1)
+          
+          // Build offense history from all cases
+          const offenseHistory = studentCaseList.map((case_, index) => ({
+            offense_level: case_.violation_type || `${index + 1}${index === 0 ? 'st' : index === 1 ? 'nd' : index === 2 ? 'rd' : 'th'} Offense`,
+            description: case_.description,
+            date_of_incident: case_.date_of_incident,
+            location: case_.location,
+            reported_by: case_.reported_by,
+            reported_at: case_.created_at?.toDate?.() || new Date()
+          }))
+          
+          // Get the latest case info
+          const latestCase = studentCaseList[studentCaseList.length - 1]
+          const offenseCount = studentCaseList.length
+          
+          // Update main case with merged data
+          await updateDoc(doc(db, 'disciplinary_cases', mainCase.id), {
+            violation_type: latestCase.violation_type || `${offenseCount}${offenseCount === 1 ? 'st' : offenseCount === 2 ? 'nd' : offenseCount === 3 ? 'rd' : 'th'} Offense`,
+            description: latestCase.description,
+            date_of_incident: latestCase.date_of_incident,
+            location: latestCase.location,
+            reported_by: latestCase.reported_by,
+            offense_history: offenseHistory,
+            offense_count: offenseCount,
+            status: latestCase.status,
+            updated_at: new Date()
+          })
+          
+          // Delete duplicate cases
+          for (const duplicateCase of duplicateCases) {
+            await deleteDoc(doc(db, 'disciplinary_cases', duplicateCase.id))
+          }
+          
+          mergedCount++
+        }
+      }
+      
+      toast.success(`Successfully merged cases for ${mergedCount} students!`)
+      fetchCases() // Refresh the table
+    } catch (error) {
+      console.error('Error merging cases:', error)
+      toast.error('Failed to merge cases. Please try again.')
+    }
+    setMergingCases(false)
+  }
+
   const printGoodMoralCertificate = (studentCase) => {
     const printWindow = window.open('', '_blank')
     const currentDate = new Date().toLocaleDateString('en-US', { 
@@ -113,367 +188,303 @@ export default function CaseManagement() {
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Good Moral Certificate - ${studentCase.student_name}</title>
-          <style>
-            @page {
-              size: A4;
-              margin: 0;
-            }
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Good Moral Certificate - ${studentCase.student_name}</title>
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          body {
+            font-family: 'Times New Roman', serif;
+            background: white;
+            padding: 20px;
+          }
+          
+          .certificate {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 8px double #10b981;
+            padding: 30px;
+            position: relative;
+            background: white;
+          }
+          
+          .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #10b981;
+            padding-bottom: 20px;
+          }
+          
+          .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            background: #10b981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: white;
+          }
+          
+          .university-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #10b981;
+            margin-bottom: 5px;
+          }
+          
+          .campus-name {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 8px;
+          }
+          
+          .office-name {
+            font-size: 14px;
+            color: #888;
+            font-style: italic;
+          }
+          
+          .certificate-title {
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: #10b981;
+            margin: 30px 0 25px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+          }
+          
+          .content {
+            text-align: justify;
+            line-height: 1.8;
+            font-size: 15px;
+            margin: 25px 0;
+          }
+          
+          .student-name {
+            font-size: 22px;
+            font-weight: bold;
+            color: #10b981;
+            text-decoration: underline;
+            text-align: center;
+            margin: 20px 0;
+          }
+          
+          .student-id {
+            text-align: center;
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 25px;
+          }
+          
+          .footer {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 20px;
+          }
+          
+          .signature-block {
+            text-align: center;
+            flex: 1;
+            min-width: 200px;
+          }
+          
+          .signature-line {
+            border-top: 2px solid #000;
+            margin-top: 50px;
+            padding-top: 8px;
+            font-weight: bold;
+            font-size: 13px;
+          }
+          
+          .signature-title {
+            font-size: 13px;
+            color: #666;
+            margin-top: 5px;
+          }
+          
+          .date {
+            text-align: right;
+            margin-top: 30px;
+            font-style: italic;
+            font-size: 14px;
+          }
+          
+          .seal {
+            position: absolute;
+            bottom: 80px;
+            left: 50px;
+            width: 100px;
+            height: 100px;
+            border: 3px solid #10b981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            text-align: center;
+            color: #10b981;
+            font-weight: bold;
+            transform: rotate(-15deg);
+            line-height: 1.2;
+          }
+          
+          /* Mobile Responsive */
+          @media screen and (max-width: 768px) {
             body {
-              font-family: 'Times New Roman', serif;
-              padding: 20px;
-              background: white;
-              color: #000;
+              padding: 10px;
             }
+            
             .certificate {
-              border: 4px double #10b981;
               padding: 20px;
-              position: relative;
-              min-height: 85vh;
-              background: white;
+              border-width: 5px;
             }
-            .header {
-              text-align: center;
-              margin-bottom: 20px;
-              border-bottom: 2px solid #10b981;
-              padding-bottom: 15px;
-            }
+            
             .logo {
               width: 60px;
               height: 60px;
-              margin: 0 auto 10px;
-              background: #10b981;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 28px;
-              color: white;
+              font-size: 30px;
             }
+            
             .university-name {
               font-size: 18px;
-              font-weight: bold;
-              color: #10b981;
-              margin-bottom: 5px;
             }
+            
             .campus-name {
               font-size: 14px;
-              color: #666;
-              margin-bottom: 5px;
             }
+            
             .office-name {
               font-size: 12px;
-              color: #888;
-              font-style: italic;
             }
+            
             .certificate-title {
-              text-align: center;
               font-size: 20px;
-              font-weight: bold;
-              color: #10b981;
-              margin: 20px 0 15px;
-              text-transform: uppercase;
               letter-spacing: 1px;
             }
+            
             .content {
-              text-align: justify;
+              font-size: 13px;
               line-height: 1.6;
-              font-size: 14px;
-              margin: 15px 0;
             }
+            
             .student-name {
               font-size: 18px;
-              font-weight: bold;
-              color: #10b981;
-              text-decoration: underline;
-              text-align: center;
-              margin: 15px 0;
             }
+            
             .student-id {
-              text-align: center;
               font-size: 14px;
-              color: #666;
-              margin-bottom: 15px;
             }
+            
             .footer {
-              margin-top: 30px;
-              display: flex;
-              justify-content: space-between;
-              flex-wrap: wrap;
-              gap: 20px;
+              flex-direction: column;
             }
+            
             .signature-block {
-              text-align: center;
-              flex: 1;
-              min-width: 120px;
+              width: 100%;
             }
+            
             .signature-line {
-              border-top: 2px solid #000;
               margin-top: 40px;
-              padding-top: 8px;
-              font-weight: bold;
               font-size: 12px;
             }
-            .signature-title {
-              font-size: 11px;
-              color: #666;
-              margin-top: 3px;
-            }
-            .date {
-              text-align: right;
-              margin-top: 20px;
-              font-style: italic;
-              font-size: 13px;
-            }
+            
             .seal {
-              position: absolute;
-              bottom: 60px;
-              left: 20px;
               width: 80px;
               height: 80px;
-              border: 2px solid #10b981;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 10px;
-              text-align: center;
-              color: #10b981;
-              font-weight: bold;
-              transform: rotate(-15deg);
-              line-height: 1.2;
+              font-size: 9px;
+              left: 30px;
+              bottom: 60px;
             }
-            .button-container {
-              text-align: center;
-              margin-top: 20px;
-              padding: 15px;
-              background: #f3f4f6;
-              border-radius: 8px;
-              display: flex;
-              flex-direction: column;
-              gap: 10px;
-            }
-            .btn {
-              padding: 12px 20px;
-              border: none;
-              border-radius: 8px;
-              font-size: 14px;
-              cursor: pointer;
-              font-weight: 600;
-              transition: all 0.3s;
-              width: 100%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              gap: 8px;
-            }
-            .btn-print {
-              background: #10b981;
-              color: white;
-              box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
-            }
-            .btn-print:hover {
-              background: #059669;
-              box-shadow: 0 4px 6px rgba(16, 185, 129, 0.4);
-              transform: translateY(-1px);
-            }
-            .btn-print:active {
-              transform: translateY(0);
-            }
-            .btn-close {
-              background: #6b7280;
-              color: white;
-              box-shadow: 0 2px 4px rgba(107, 114, 128, 0.3);
-            }
-            .btn-close:hover {
-              background: #4b5563;
-              box-shadow: 0 4px 6px rgba(107, 114, 128, 0.4);
-              transform: translateY(-1px);
-            }
-            .btn-close:active {
-              transform: translateY(0);
+          }
+          
+          /* Print Styles */
+          @media print {
+            body {
+              padding: 0;
             }
             
-            /* Desktop styles */
-            @media (min-width: 768px) {
-              body {
-                padding: 60px 80px;
-              }
-              .certificate {
-                border: 8px double #10b981;
-                padding: 40px;
-                min-height: 90vh;
-              }
-              .logo {
-                width: 100px;
-                height: 100px;
-                font-size: 48px;
-                margin-bottom: 15px;
-              }
-              .header {
-                margin-bottom: 40px;
-                border-bottom: 3px solid #10b981;
-                padding-bottom: 20px;
-              }
-              .university-name {
-                font-size: 28px;
-              }
-              .campus-name {
-                font-size: 18px;
-                margin-bottom: 10px;
-              }
-              .office-name {
-                font-size: 16px;
-              }
-              .certificate-title {
-                font-size: 36px;
-                margin: 40px 0 30px;
-                letter-spacing: 3px;
-              }
-              .content {
-                line-height: 2;
-                font-size: 16px;
-                margin: 30px 0;
-              }
-              .student-name {
-                font-size: 24px;
-                margin: 20px 0;
-              }
-              .student-id {
-                font-size: 18px;
-                margin-bottom: 30px;
-              }
-              .footer {
-                margin-top: 60px;
-              }
-              .signature-block {
-                width: 45%;
-              }
-              .signature-line {
-                margin-top: 60px;
-                padding-top: 10px;
-                font-size: 14px;
-              }
-              .signature-title {
-                font-size: 14px;
-                margin-top: 5px;
-              }
-              .date {
-                margin-top: 40px;
-                font-size: inherit;
-              }
-              .seal {
-                bottom: 100px;
-                left: 80px;
-                width: 120px;
-                height: 120px;
-                border: 3px solid #10b981;
-                font-size: 12px;
-              }
-              .button-container {
-                flex-direction: row;
-                justify-content: center;
-              }
-              .btn {
-                padding: 12px 24px;
-                font-size: 16px;
-                width: auto;
-              }
+            .certificate {
+              border-width: 6px;
+              page-break-inside: avoid;
             }
             
-            @media print {
-              body {
-                padding: 40px 60px;
-              }
-              .certificate {
-                border: 8px double #10b981;
-                padding: 40px;
-              }
-              .no-print {
-                display: none !important;
-              }
-              .seal {
-                bottom: 100px;
-                left: 80px;
-              }
+            @page {
+              size: A4;
+              margin: 15mm;
             }
-          </style>
-        </head>
-        <body>
-          <div class="certificate">
-            <div class="header">
-              <div class="logo">⚖️</div>
-              <div class="university-name">MINDORO STATE UNIVERSITY</div>
-              <div class="campus-name">Bongabong Campus</div>
-              <div class="office-name">Office of Student Affairs</div>
+          }
+        </style>
+      </head>
+      <body>
+        <div class="certificate">
+          <div class="header">
+            <div class="logo">⚖️</div>
+            <div class="university-name">MINDORO STATE UNIVERSITY</div>
+            <div class="campus-name">Bongabong Campus</div>
+            <div class="office-name">Office of Student Affairs</div>
+          </div>
+          
+          <div class="certificate-title">Certificate of Good Moral Character</div>
+          
+          <div class="content">
+            <p style="text-indent: 30px;">
+              This is to certify that <strong>${studentCase.student_name}</strong>, 
+              a bonafide student of Mindoro State University - Bongabong Campus, 
+              has demonstrated good moral character and conduct during their stay in this institution.
+            </p>
+          </div>
+          
+          <div class="student-name">${studentCase.student_name}</div>
+          <div class="student-id">Student ID: ${studentCase.student_id}</div>
+          
+          <div class="content">
+            <p style="text-indent: 30px;">
+              Based on our records, the above-named student has maintained satisfactory 
+              disciplinary standing and has shown respect for university rules and regulations. 
+              This certificate is issued upon request for whatever legal purpose it may serve.
+            </p>
+          </div>
+          
+          <div class="date">Issued this ${currentDate}</div>
+          
+          <div class="footer">
+            <div class="signature-block">
+              <div class="signature-line">_______________________</div>
+              <div class="signature-title">Discipline Officer</div>
             </div>
-            
-            <div class="certificate-title">Certificate of Good Moral Character</div>
-            
-            <div class="content">
-              <p style="text-indent: 30px;">
-                This is to certify that <strong>${studentCase.student_name}</strong>, 
-                a bonafide student of Mindoro State University - Bongabong Campus, 
-                has demonstrated good moral character and conduct during their stay in this institution.
-              </p>
-            </div>
-            
-            <div class="student-name">${studentCase.student_name}</div>
-            <div class="student-id">Student ID: ${studentCase.student_id}</div>
-            
-            <div class="content">
-              <p style="text-indent: 30px;">
-                Based on our records, the above-named student has maintained satisfactory 
-                disciplinary standing and has shown respect for university rules and regulations. 
-                This certificate is issued upon request for whatever legal purpose it may serve.
-              </p>
-            </div>
-            
-            <div class="date">
-              Issued this ${currentDate}
-            </div>
-            
-            <div class="footer">
-              <div class="signature-block">
-                <div class="signature-line">_______________________</div>
-                <div class="signature-title">Discipline Officer</div>
-              </div>
-              <div class="signature-block">
-                <div class="signature-line">_______________________</div>
-                <div class="signature-title">Director, Student Affairs</div>
-              </div>
-            </div>
-            
-            <div class="seal">
-              OFFICIAL<br/>SEAL<br/>MinSU
+            <div class="signature-block">
+              <div class="signature-line">_______________________</div>
+              <div class="signature-title">Director, Student Affairs</div>
             </div>
           </div>
           
-          <div class="no-print button-container">
-            <button onclick="window.print()" class="btn btn-print">
-              <span style="font-size: 18px;">🖨️</span>
-              <span>Print Certificate</span>
-            </button>
-            <button onclick="window.close()" class="btn btn-close">
-              <span style="font-size: 18px;">✕</span>
-              <span>Close Window</span>
-            </button>
-          </div>
-        </body>
+          <div class="seal">OFFICIAL<br/>SEAL<br/>MinSU</div>
+        </div>
+      </body>
       </html>
     `)
+    
     printWindow.document.close()
-    toast.success('Good Moral Certificate opened in new window')
+    
+    // Trigger print dialog after content loads
+    printWindow.onload = function() {
+      printWindow.print()
+    }
+    
+    toast.success('Certificate ready for printing/PDF export')
   }
-
   const columns = [
     {
       name: 'Case Number',
@@ -486,13 +497,7 @@ export default function CaseManagement() {
       name: 'Student Name',
       selector: row => row.student_name,
       sortable: true,
-      grow: 1,
-    },
-    {
-      name: 'Violation Type',
-      selector: row => row.violation_type,
-      sortable: true,
-      grow: 1,
+      grow: 2,
     },
     {
       name: 'Offense',
@@ -502,9 +507,9 @@ export default function CaseManagement() {
       center: true,
       cell: row => (
         <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-          row.violationCount === 1 
+          row.offenseNumber === 1 
             ? 'bg-green-100 text-green-800' 
-            : row.violationCount === 2 
+            : row.offenseNumber === 2 
             ? 'bg-yellow-100 text-yellow-800' 
             : 'bg-red-100 text-red-800'
         }`}>
@@ -524,7 +529,7 @@ export default function CaseManagement() {
             ? 'bg-green-100 text-green-800' 
             : 'bg-red-100 text-red-800'
         }`}>
-          {row.isEligibleForGoodMoral ? '✓ Eligible' : '✗ Not Eligible'}
+          {row.isEligibleForGoodMoral ? 'âœ“ Eligible' : 'âœ— Not Eligible'}
         </span>
       ),
     },
@@ -605,21 +610,32 @@ export default function CaseManagement() {
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Case Management</h2>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Review and manage disciplinary cases</p>
         </div>
-        <div className="flex items-center space-x-2 overflow-x-auto pb-2 sm:pb-0">
-          <FaFilter className="text-gray-500 flex-shrink-0" />
-          {['all', 'pending', 'active', 'resolved'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-                filter === status
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </button>
-          ))}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <button
+            onClick={mergeDuplicateCases}
+            disabled={mergingCases}
+            className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            title="Merge duplicate cases for same students"
+          >
+            <FaBroom />
+            <span>{mergingCases ? 'Merging...' : 'Clean Up Duplicates'}</span>
+          </button>
+          <div className="flex items-center space-x-2 overflow-x-auto pb-2 sm:pb-0">
+            <FaFilter className="text-gray-500 flex-shrink-0" />
+            {['all', 'pending', 'active', 'resolved'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilter(status)}
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+                  filter === status
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -631,7 +647,7 @@ export default function CaseManagement() {
           </div>
         ) : filteredCases.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-6xl mb-4">📋</div>
+            <div className="text-6xl mb-4">ðŸ“‹</div>
             <p className="text-gray-500 font-medium">No cases found</p>
             <p className="text-sm text-gray-400 mt-2">
               {filter === 'all' ? 'No cases have been reported yet' : `No ${filter} cases found`}
@@ -708,7 +724,7 @@ export default function CaseManagement() {
                       ? 'bg-green-100 text-green-800' 
                       : 'bg-red-100 text-red-800'
                   }`}>
-                    {selectedCase.isEligibleForGoodMoral ? '✓ Eligible' : '✗ Not Eligible'}
+                    {selectedCase.isEligibleForGoodMoral ? 'âœ“ Eligible' : 'âœ— Not Eligible'}
                   </span>
                 </div>
               </div>
@@ -717,7 +733,7 @@ export default function CaseManagement() {
             {!selectedCase.isEligibleForGoodMoral && (
               <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
                 <div className="flex items-start space-x-3">
-                  <span className="text-2xl">⚠️</span>
+                  <span className="text-2xl">âš ï¸</span>
                   <div>
                     <h4 className="font-bold text-red-900 mb-1">Good Moral Certificate Not Available</h4>
                     <p className="text-sm text-red-700">
@@ -731,10 +747,10 @@ export default function CaseManagement() {
 
             {selectedCase.isEligibleForGoodMoral && (
               <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3">
-                    <span className="text-2xl">✅</span>
-                    <div>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div className="flex items-start space-x-3 flex-1">
+                    <span className="text-2xl flex-shrink-0">âœ…</span>
+                    <div className="flex-1 min-w-0">
                       <h4 className="font-bold text-green-900 mb-1">Eligible for Good Moral Certificate</h4>
                       <p className="text-sm text-green-700">
                         This student is on their {selectedCase.offenseLevel} and is eligible to receive a Good Moral Certificate.
@@ -743,10 +759,10 @@ export default function CaseManagement() {
                   </div>
                   <button
                     onClick={() => printGoodMoralCertificate(selectedCase)}
-                    className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg"
+                    className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg w-full sm:w-auto flex-shrink-0"
                   >
-                    <FaPrint />
-                    <span>Print Certificate</span>
+                    <FaPrint className="text-lg" />
+                    <span className="whitespace-nowrap">Print Certificate</span>
                   </button>
                 </div>
               </div>
@@ -764,7 +780,7 @@ export default function CaseManagement() {
             </div>
 
             <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-sm font-medium text-gray-500 mb-1">Violation Type</p>
+              <p className="text-sm font-medium text-gray-500 mb-1">Offense Level</p>
               <p className="text-lg font-semibold text-gray-900">{selectedCase.violation_type}</p>
             </div>
 
@@ -789,6 +805,39 @@ export default function CaseManagement() {
               <p className="text-gray-900 font-medium">{selectedCase.reported_by}</p>
             </div>
 
+            {/* Offense History */}
+            {selectedCase.offense_history && selectedCase.offense_history.length > 1 && (
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                <h4 className="font-bold text-blue-900 mb-3 flex items-center space-x-2">
+                  <span>ðŸ“‹</span>
+                  <span>Offense History ({selectedCase.offense_history.length} total offenses)</span>
+                </h4>
+                <div className="space-y-3">
+                  {selectedCase.offense_history.map((offense, index) => (
+                    <div key={index} className="bg-white rounded-lg p-3 border border-blue-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          index + 1 === 1 ? 'bg-green-100 text-green-800' :
+                          index + 1 === 2 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {offense.offense_level}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {offense.date_of_incident}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 mb-1">{offense.description}</p>
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>ðŸ“ {offense.location}</span>
+                        <span>ðŸ‘¤ {offense.reported_by}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="pt-6 border-t border-gray-200">
               <p className="text-sm font-medium text-gray-700 mb-4">Update Case Status</p>
               <div className="flex space-x-3">
@@ -797,7 +846,7 @@ export default function CaseManagement() {
                     onClick={() => handleStatusChange(selectedCase.id, 'active')}
                     className="flex-1 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition-colors"
                   >
-                    🔄 Mark as Active
+                    ðŸ”„ Mark as Active
                   </button>
                 )}
                 {selectedCase.status !== 'resolved' && (
@@ -805,7 +854,7 @@ export default function CaseManagement() {
                     onClick={() => handleStatusChange(selectedCase.id, 'resolved')}
                     className="flex-1 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors"
                   >
-                    ✅ Mark as Resolved
+                    âœ… Mark as Resolved
                   </button>
                 )}
               </div>
