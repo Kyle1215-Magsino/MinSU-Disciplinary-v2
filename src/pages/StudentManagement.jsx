@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { collection, query, getDocs, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { fetchStudents, addStudent, updateStudent, deleteStudent } from '../lib/api'
 import toast from 'react-hot-toast'
 import DataTable from 'react-data-table-component'
 import { FaUserPlus, FaEdit, FaTrash, FaUserGraduate, FaIdCard, FaEnvelope, FaPhone } from 'react-icons/fa'
@@ -24,50 +23,33 @@ export default function StudentManagement() {
   })
 
   useEffect(() => {
-    // Use real-time listener for instant updates
-    const q = query(collection(db, 'students'))
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const studentsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      setStudents(studentsData)
-      setLoading(false)
-    }, (error) => {
+    fetchStudentsData()
+  }, [])
+
+  const fetchStudentsData = async () => {
+    setLoading(true)
+    try {
+      const data = await fetchStudents()
+      setStudents(data)
+    } catch (error) {
       console.error('Error fetching students:', error)
       toast.error('Failed to load students')
-      setLoading(false)
-    })
-
-    return () => unsubscribe()
-  }, [])
+    }
+    setLoading(false)
+  }
 
   const handleAddStudent = async (e) => {
     e.preventDefault()
     
     try {
-      // Use student_id as document ID for easy lookup
-      await setDoc(doc(db, 'students', newStudentData.student_id), {
-        ...newStudentData,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      })
-
+      await addStudent(newStudentData)
       toast.success('Student added successfully!')
       setShowAddModal(false)
-      setNewStudentData({
-        student_id: '',
-        student_name: '',
-        email: '',
-        phone: '',
-        course: '',
-        year_level: '1st Year'
-      })
-      // No need to call fetchStudents - real-time listener will update
+      setNewStudentData({ student_id: '', student_name: '', email: '', phone: '', course: '', year_level: '1st Year' })
+      fetchStudentsData()
     } catch (error) {
       console.error('Error adding student:', error)
-      if (error.code === 'permission-denied') {
-        toast.error('Permission denied. Please check Firestore rules.')
-      } else {
-        toast.error('Failed to add student')
-      }
+      toast.error(error.response?.data?.error || 'Failed to add student')
     }
   }
 
@@ -75,19 +57,17 @@ export default function StudentManagement() {
     if (!selectedStudent) return
 
     try {
-      await updateDoc(doc(db, 'students', selectedStudent.id), {
+      await updateStudent(selectedStudent.id, {
         student_name: selectedStudent.student_name,
         email: selectedStudent.email,
         phone: selectedStudent.phone,
         course: selectedStudent.course,
         year_level: selectedStudent.year_level,
-        updatedAt: new Date()
       })
-
       toast.success('Student updated successfully!')
       setShowEditModal(false)
       setSelectedStudent(null)
-      // No need to call fetchStudents - real-time listener will update
+      fetchStudentsData()
     } catch (error) {
       console.error('Error updating student:', error)
       toast.error('Failed to update student')
@@ -98,18 +78,17 @@ export default function StudentManagement() {
     if (!selectedStudent) return
 
     try {
-      await deleteDoc(doc(db, 'students', selectedStudent.id))
+      await deleteStudent(selectedStudent.id)
       toast.success('Student deleted successfully!')
       setShowDeleteModal(false)
       setSelectedStudent(null)
-      // No need to call fetchStudents - real-time listener will update
+      fetchStudentsData()
     } catch (error) {
       console.error('Error deleting student:', error)
       toast.error('Failed to delete student')
     }
   }
 
-  // Memoize columns to prevent re-renders
   const columns = useMemo(() => [
     {
       name: 'Student ID',
@@ -152,10 +131,7 @@ export default function StudentManagement() {
       cell: row => (
         <div className="flex items-center justify-center space-x-2">
           <button
-            onClick={() => {
-              setSelectedStudent(row)
-              setShowEditModal(true)
-            }}
+            onClick={() => { setSelectedStudent(row); setShowEditModal(true) }}
             className="flex items-center space-x-1 px-2 sm:px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-xs sm:text-sm"
             title="Edit Student"
           >
@@ -163,10 +139,7 @@ export default function StudentManagement() {
             <span className="hidden sm:inline">Edit</span>
           </button>
           <button
-            onClick={() => {
-              setSelectedStudent(row)
-              setShowDeleteModal(true)
-            }}
+            onClick={() => { setSelectedStudent(row); setShowDeleteModal(true) }}
             className="flex items-center space-x-1 px-2 sm:px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-xs sm:text-sm"
             title="Delete Student"
           >
@@ -178,7 +151,6 @@ export default function StudentManagement() {
     },
   ], [])
 
-  // Memoize custom styles
   const customStyles = useMemo(() => ({
     headRow: {
       style: {
@@ -194,9 +166,7 @@ export default function StudentManagement() {
       style: {
         fontSize: '14px',
         minHeight: '60px',
-        '&:hover': {
-          backgroundColor: '#f3f4f6',
-        },
+        '&:hover': { backgroundColor: '#f3f4f6' },
       },
     },
     pagination: {
@@ -223,7 +193,6 @@ export default function StudentManagement() {
         </button>
       </div>
 
-      {/* Students DataTable */}
       <div className="bg-white rounded-xl shadow-lg border-2 border-emerald-500 overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-12">
@@ -249,92 +218,54 @@ export default function StudentManagement() {
         )}
       </div>
 
-      {/* Add Student Modal */}
       <Modal
         isOpen={showAddModal}
-        onClose={() => {
-          setShowAddModal(false)
-          setNewStudentData({
-            student_id: '',
-            student_name: '',
-            email: '',
-            phone: '',
-            course: '',
-            year_level: '1st Year'
-          })
-        }}
+        onClose={() => { setShowAddModal(false); setNewStudentData({ student_id: '', student_name: '', email: '', phone: '', course: '', year_level: '1st Year' }) }}
         title="Add New Student"
         size="md"
       >
         <form onSubmit={handleAddStudent} className="space-y-4 sm:space-y-5">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              <FaIdCard className="inline mr-2 text-emerald-600" />
-              Student ID *
+              <FaIdCard className="inline mr-2 text-emerald-600" />Student ID *
             </label>
-            <input
-              type="text"
-              value={newStudentData.student_id}
+            <input type="text" value={newStudentData.student_id}
               onChange={(e) => setNewStudentData({ ...newStudentData, student_id: e.target.value })}
               className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-              placeholder="e.g., 2024-00001"
-              required
-            />
+              placeholder="e.g., 2024-00001" required />
           </div>
-
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              <FaUserGraduate className="inline mr-2 text-emerald-600" />
-              Full Name *
+              <FaUserGraduate className="inline mr-2 text-emerald-600" />Full Name *
             </label>
-            <input
-              type="text"
-              value={newStudentData.student_name}
+            <input type="text" value={newStudentData.student_name}
               onChange={(e) => setNewStudentData({ ...newStudentData, student_name: e.target.value })}
               className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-              placeholder="Juan Dela Cruz"
-              required
-            />
+              placeholder="Juan Dela Cruz" required />
           </div>
-
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              <FaEnvelope className="inline mr-2 text-emerald-600" />
-              Email
+              <FaEnvelope className="inline mr-2 text-emerald-600" />Email
             </label>
-            <input
-              type="email"
-              value={newStudentData.email}
+            <input type="email" value={newStudentData.email}
               onChange={(e) => setNewStudentData({ ...newStudentData, email: e.target.value })}
               className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-              placeholder="student@minsu.edu.ph"
-            />
+              placeholder="student@minsu.edu.ph" />
           </div>
-
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              <FaPhone className="inline mr-2 text-emerald-600" />
-              Phone Number
+              <FaPhone className="inline mr-2 text-emerald-600" />Phone Number
             </label>
-            <input
-              type="tel"
-              value={newStudentData.phone}
+            <input type="tel" value={newStudentData.phone}
               onChange={(e) => setNewStudentData({ ...newStudentData, phone: e.target.value })}
               className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-              placeholder="09XX-XXX-XXXX"
-            />
+              placeholder="09XX-XXX-XXXX" />
           </div>
-
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Course *
-            </label>
-            <select
-              value={newStudentData.course}
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Course *</label>
+            <select value={newStudentData.course}
               onChange={(e) => setNewStudentData({ ...newStudentData, course: e.target.value })}
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-              required
-            >
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base" required>
               <option value="">Select Course</option>
               <option value="BS Computer Science">BS Computer Science</option>
               <option value="BS Information Technology">BS Information Technology</option>
@@ -350,58 +281,33 @@ export default function StudentManagement() {
               <option value="BS Tourism Management">BS Tourism Management</option>
             </select>
           </div>
-
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Year Level *
-            </label>
-            <select
-              value={newStudentData.year_level}
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Year Level *</label>
+            <select value={newStudentData.year_level}
               onChange={(e) => setNewStudentData({ ...newStudentData, year_level: e.target.value })}
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-            >
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base">
               <option value="1st Year">1st Year</option>
               <option value="2nd Year">2nd Year</option>
               <option value="3rd Year">3rd Year</option>
               <option value="4th Year">4th Year</option>
             </select>
           </div>
-
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={() => {
-                setShowAddModal(false)
-                setNewStudentData({
-                  student_id: '',
-                  student_name: '',
-                  email: '',
-                  phone: '',
-                  course: '',
-                  year_level: '1st Year'
-                })
-              }}
-              className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition-colors text-sm sm:text-base"
-            >
+            <button type="button" onClick={() => { setShowAddModal(false); setNewStudentData({ student_id: '', student_name: '', email: '', phone: '', course: '', year_level: '1st Year' }) }}
+              className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition-colors text-sm sm:text-base">
               Cancel
             </button>
-            <button
-              type="submit"
-              className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors text-sm sm:text-base"
-            >
+            <button type="submit"
+              className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors text-sm sm:text-base">
               Add Student
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* Edit Student Modal */}
       <Modal
         isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false)
-          setSelectedStudent(null)
-        }}
+        onClose={() => { setShowEditModal(false); setSelectedStudent(null) }}
         title="Edit Student"
         size="md"
       >
@@ -411,54 +317,29 @@ export default function StudentManagement() {
               <p className="text-xs sm:text-sm text-gray-600 mb-1">Student ID</p>
               <p className="text-base sm:text-lg font-semibold text-gray-900">{selectedStudent.student_id}</p>
             </div>
-
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Full Name *
-              </label>
-              <input
-                type="text"
-                value={selectedStudent.student_name}
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name *</label>
+              <input type="text" value={selectedStudent.student_name}
                 onChange={(e) => setSelectedStudent({ ...selectedStudent, student_name: e.target.value })}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-                required
-              />
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base" required />
             </div>
-
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Email
-              </label>
-              <input
-                type="email"
-                value={selectedStudent.email || ''}
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+              <input type="email" value={selectedStudent.email || ''}
                 onChange={(e) => setSelectedStudent({ ...selectedStudent, email: e.target.value })}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-              />
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base" />
             </div>
-
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                value={selectedStudent.phone || ''}
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
+              <input type="tel" value={selectedStudent.phone || ''}
                 onChange={(e) => setSelectedStudent({ ...selectedStudent, phone: e.target.value })}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-              />
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base" />
             </div>
-
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Course *
-              </label>
-              <select
-                value={selectedStudent.course}
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Course *</label>
+              <select value={selectedStudent.course}
                 onChange={(e) => setSelectedStudent({ ...selectedStudent, course: e.target.value })}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-                required
-              >
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base" required>
                 <option value="">Select Course</option>
                 <option value="BS Computer Science">BS Computer Science</option>
                 <option value="BS Information Technology">BS Information Technology</option>
@@ -474,37 +355,24 @@ export default function StudentManagement() {
                 <option value="BS Tourism Management">BS Tourism Management</option>
               </select>
             </div>
-
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Year Level *
-              </label>
-              <select
-                value={selectedStudent.year_level}
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Year Level *</label>
+              <select value={selectedStudent.year_level}
                 onChange={(e) => setSelectedStudent({ ...selectedStudent, year_level: e.target.value })}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-              >
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base">
                 <option value="1st Year">1st Year</option>
                 <option value="2nd Year">2nd Year</option>
                 <option value="3rd Year">3rd Year</option>
                 <option value="4th Year">4th Year</option>
               </select>
             </div>
-
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
-              <button
-                onClick={() => {
-                  setShowEditModal(false)
-                  setSelectedStudent(null)
-                }}
-                className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition-colors text-sm sm:text-base"
-              >
+              <button onClick={() => { setShowEditModal(false); setSelectedStudent(null) }}
+                className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition-colors text-sm sm:text-base">
                 Cancel
               </button>
-              <button
-                onClick={handleUpdateStudent}
-                className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors text-sm sm:text-base"
-              >
+              <button onClick={handleUpdateStudent}
+                className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors text-sm sm:text-base">
                 Update Student
               </button>
             </div>
@@ -512,13 +380,9 @@ export default function StudentManagement() {
         )}
       </Modal>
 
-      {/* Delete Confirmation Modal */}
       <ConfirmModal
         isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false)
-          setSelectedStudent(null)
-        }}
+        onClose={() => { setShowDeleteModal(false); setSelectedStudent(null) }}
         onConfirm={handleDeleteStudent}
         title="Delete Student"
         message={`Are you sure you want to delete ${selectedStudent?.student_name}? This action cannot be undone.`}

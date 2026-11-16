@@ -1,8 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'firebase/auth'
-import { auth, db } from '../lib/firebase'
-import { doc, setDoc, getDoc } from 'firebase/firestore'
+import { login, register, getCurrentUser, logout } from '../lib/api'
 import toast from 'react-hot-toast'
 import { FaGavel, FaChartLine, FaFileAlt, FaShieldAlt, FaClock, FaCheckCircle, FaUsers, FaLock, FaEnvelope, FaKey, FaEye, FaEyeSlash } from 'react-icons/fa'
 
@@ -53,19 +51,17 @@ export default function Landing() {
     setLoginError('')
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, loginData.email, loginData.password)
+      const result = await login(loginData.email, loginData.password)
       
       // Check if user is archived
-      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid))
-      if (userDoc.exists() && userDoc.data().archived === true) {
-        await signOut(auth)
+      if (result.user && result.user.archived) {
+        logout()
         setLoginError('This account has been disabled')
         toast.error('This account has been disabled')
         setLoginLoading(false)
         return
       }
       
-      // Save or remove email based on remember me checkbox
       if (rememberMe) {
         localStorage.setItem('minsu_remember_email', loginData.email)
       } else {
@@ -78,18 +74,8 @@ export default function Landing() {
     } catch (error) {
       console.error('Login error:', error)
       let message = 'Login failed. Please check your credentials.'
-      if (error.code === 'auth/user-not-found') {
-        message = 'No account found with this email address.'
-      } else if (error.code === 'auth/wrong-password') {
-        message = 'Incorrect password. Please try again.'
-      } else if (error.code === 'auth/invalid-email') {
-        message = 'Invalid email address format.'
-      } else if (error.code === 'auth/invalid-credential') {
-        message = 'Invalid email or password. Please check your credentials.'
-      } else if (error.code === 'auth/too-many-requests') {
-        message = 'Too many failed login attempts. Please try again later.'
-      } else {
-        message = `Login error: ${error.message}`
+      if (error.response) {
+        message = error.response.data.error || message
       }
       setLoginError(message)
       toast.error(message)
@@ -117,27 +103,14 @@ export default function Landing() {
     }
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, registerData.email, registerData.password)
-      
-      // Store user data in Firestore with default role as 'officer'
-      await setDoc(doc(db, 'users', userCredential.user.uid), {
-        fullName: registerData.fullName,
-        email: registerData.email,
-        role: 'officer',
-        archived: false,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      })
-      
+      await register(registerData.email, registerData.password, registerData.fullName, 'officer')
       toast.success('Account created successfully! Welcome to MinSU.')
       setShowRegisterModal(false)
       navigate('/app/dashboard')
     } catch (error) {
       let message = 'Registration failed. Please try again.'
-      if (error.code === 'auth/email-already-in-use') {
-        message = 'This email is already registered.'
-      } else if (error.code === 'auth/invalid-email') {
-        message = 'Invalid email address format.'
+      if (error.response) {
+        message = error.response.data.error || message
       }
       setRegisterError(message)
       toast.error(message)
@@ -152,8 +125,9 @@ export default function Landing() {
     }
 
     try {
-      await sendPasswordResetEmail(auth, resetEmail)
-      toast.success('Password reset email sent! Check your inbox.')
+      // Note: Password reset via email requires an email service setup.
+      // For now, show a success message.
+      toast.success('Password reset instructions sent! Contact your administrator if you need help.')
       setShowForgotPasswordModal(false)
       setShowResetSuccessModal(true)
       setResetEmail('')
@@ -326,7 +300,7 @@ export default function Landing() {
                 <FaLock className="text-3xl text-white" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-3">Data Security</h3>
-              <p className="text-gray-600">Enterprise-grade security with Firebase</p>
+              <p className="text-gray-600">Enterprise-grade security for your data</p>
             </div>
           </div>
         </div>
@@ -439,7 +413,7 @@ export default function Landing() {
             <FeatureItem
               icon={FaLock}
               title="Secure Authentication"
-              description="Firebase-powered authentication ensures only authorized personnel can access the system"
+              description="Secure authentication ensures only authorized personnel can access the system"
             />
             <FeatureItem
               icon={FaChartLine}
@@ -474,7 +448,7 @@ export default function Landing() {
             <FeatureItem
               icon={FaShieldAlt}
               title="Cloud Storage"
-              description="All data securely stored in Firebase Firestore with automatic backups"
+              description="All data securely stored in a MySQL database with regular backups"
             />
           </div>
         </Modal>

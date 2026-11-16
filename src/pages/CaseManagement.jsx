@@ -1,6 +1,5 @@
 ﻿import { useState, useEffect } from 'react'
-import { collection, query, orderBy, where, getDocs, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { fetchCases, createCase, updateCaseStatus as updateCaseStatusApi, mergeCases, fetchStudents } from '../lib/api'
 import toast from 'react-hot-toast'
 import Modal, { ConfirmModal } from '../components/Modal'
 import DataTable from 'react-data-table-component'
@@ -48,30 +47,22 @@ export default function CaseManagement() {
   const fetchCases = async () => {
     setLoading(true)
     try {
-      const q = query(collection(db, 'disciplinary_cases'), orderBy('created_at', 'desc'))
-      const querySnapshot = await getDocs(q)
-      const casesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      const casesData = await fetchCases()
       
       // Add offense information to each case
       const casesWithOffenseLevel = casesData.map(case_ => {
-        // Get offense count from the case data
         let offenseCount = case_.offense_count || 1
-        
-        // Parse offense level from violation_type if it exists
         let offenseLevel = case_.violation_type || '1st Offense'
-        
-        // Extract number from offense level (e.g., "3rd Offense" -> 3)
         const offenseMatch = offenseLevel.match(/(\d+)(st|nd|rd|th)/)
         if (offenseMatch) {
           offenseCount = parseInt(offenseMatch[1])
         }
-        
         return {
           ...case_,
           violationCount: offenseCount,
           offenseNumber: offenseCount,
           offenseLevel: offenseLevel,
-          isEligibleForGoodMoral: offenseCount <= 2 // Only 1st and 2nd offense are eligible
+          isEligibleForGoodMoral: offenseCount <= 2
         }
       })
       
@@ -85,10 +76,7 @@ export default function CaseManagement() {
 
   const updateCaseStatus = async (caseId, newStatus) => {
     try {
-      await updateDoc(doc(db, 'disciplinary_cases', caseId), {
-        status: newStatus,
-        updated_at: new Date()
-      })
+      await updateCaseStatusApi(caseId, newStatus)
       toast.success(`Case status updated to ${newStatus}!`)
       fetchCases()
       setShowDetailsModal(false)
@@ -119,73 +107,9 @@ export default function CaseManagement() {
   const mergeDuplicateCases = async () => {
     setMergingCases(true)
     try {
-      const q = query(collection(db, 'disciplinary_cases'), orderBy('created_at', 'asc'))
-      const querySnapshot = await getDocs(q)
-      const allCases = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      
-      // Group cases by student_id
-      const studentCases = {}
-      allCases.forEach(case_ => {
-        if (!studentCases[case_.student_id]) {
-          studentCases[case_.student_id] = []
-        }
-        studentCases[case_.student_id].push(case_)
-      })
-      
-      let mergedCount = 0
-      
-      // Process each student's cases
-      for (const [studentId, studentCaseList] of Object.entries(studentCases)) {
-        if (studentCaseList.length > 1) {
-          // Sort by creation date (oldest first)
-          studentCaseList.sort((a, b) => {
-            const dateA = a.created_at?.toDate?.() || new Date(0)
-            const dateB = b.created_at?.toDate?.() || new Date(0)
-            return dateA - dateB
-          })
-          
-          // Keep the first (oldest) case as the main case
-          const mainCase = studentCaseList[0]
-          const duplicateCases = studentCaseList.slice(1)
-          
-          // Build offense history from all cases
-          const offenseHistory = studentCaseList.map((case_, index) => ({
-            offense_level: case_.violation_type || `${index + 1}${index === 0 ? 'st' : index === 1 ? 'nd' : index === 2 ? 'rd' : 'th'} Offense`,
-            description: case_.description,
-            date_of_incident: case_.date_of_incident,
-            location: case_.location,
-            reported_by: case_.reported_by,
-            reported_at: case_.created_at?.toDate?.() || new Date()
-          }))
-          
-          // Get the latest case info
-          const latestCase = studentCaseList[studentCaseList.length - 1]
-          const offenseCount = studentCaseList.length
-          
-          // Update main case with merged data
-          await updateDoc(doc(db, 'disciplinary_cases', mainCase.id), {
-            violation_type: latestCase.violation_type || `${offenseCount}${offenseCount === 1 ? 'st' : offenseCount === 2 ? 'nd' : offenseCount === 3 ? 'rd' : 'th'} Offense`,
-            description: latestCase.description,
-            date_of_incident: latestCase.date_of_incident,
-            location: latestCase.location,
-            reported_by: latestCase.reported_by,
-            offense_history: offenseHistory,
-            offense_count: offenseCount,
-            status: latestCase.status,
-            updated_at: new Date()
-          })
-          
-          // Delete duplicate cases
-          for (const duplicateCase of duplicateCases) {
-            await deleteDoc(doc(db, 'disciplinary_cases', duplicateCase.id))
-          }
-          
-          mergedCount++
-        }
-      }
-      
-      toast.success(`Successfully merged cases for ${mergedCount} students!`)
-      fetchCases() // Refresh the table
+      const result = await mergeCases()
+      toast.success(result.message || 'Cases merged successfully!')
+      fetchCases()
     } catch (error) {
       console.error('Error merging cases:', error)
       toast.error('Failed to merge cases. Please try again.')
@@ -194,22 +118,19 @@ export default function CaseManagement() {
   }
 
   // Report Incident Functions
-  const fetchStudents = async () => {
+  const fetchStudentsData = async () => {
     try {
-      const studentsQuery = query(collection(db, 'students'))
-      const studentsSnapshot = await getDocs(studentsQuery)
-      const studentsFromDB = studentsSnapshot.docs.map(doc => ({
-        name: doc.data().student_name,
-        id: doc.data().student_id,
-        course: doc.data().course,
-        year_level: doc.data().year_level,
+      const studentsFromDB = await fetchStudents()
+      const studentsData = studentsFromDB.map(s => ({
+        name: s.student_name,
+        id: s.student_id,
+        course: s.course,
+        year_level: s.year_level,
         offenseCount: 0
       }))
       
-      const casesQuery = query(collection(db, 'disciplinary_cases'))
-      const casesSnapshot = await getDocs(casesQuery)
-      const casesData = casesSnapshot.docs.map(doc => doc.data())
-      
+      // Fetch cases to get offense counts
+      const casesData = await fetchCases()
       const offenseCounts = {}
       casesData.forEach(case_ => {
         if (!offenseCounts[case_.student_id]) {
@@ -218,7 +139,7 @@ export default function CaseManagement() {
         offenseCounts[case_.student_id]++
       })
       
-      const studentsWithOffenses = studentsFromDB.map(student => ({
+      const studentsWithOffenses = studentsData.map(student => ({
         ...student,
         offenseCount: offenseCounts[student.id] || 0
       }))
@@ -268,70 +189,8 @@ export default function CaseManagement() {
     setReportLoading(true)
 
     try {
-      const q = query(
-        collection(db, 'disciplinary_cases'),
-        where('student_id', '==', formData.student_id)
-      )
-      const querySnapshot = await getDocs(q)
-      
-      if (!querySnapshot.empty) {
-        const existingCase = querySnapshot.docs[0]
-        const existingData = existingCase.data()
-        const offenseHistory = existingData.offense_history || []
-        
-        const newOffense = {
-          offense_level: formData.violation_type,
-          description: formData.description,
-          date_of_incident: formData.date_of_incident,
-          location: formData.location,
-          reported_by: formData.reported_by,
-          reported_at: new Date()
-        }
-        
-        offenseHistory.push(newOffense)
-        
-        await updateDoc(doc(db, 'disciplinary_cases', existingCase.id), {
-          violation_type: formData.violation_type,
-          description: formData.description,
-          date_of_incident: formData.date_of_incident,
-          location: formData.location,
-          reported_by: formData.reported_by,
-          offense_history: offenseHistory,
-          offense_count: offenseHistory.length,
-          status: 'pending',
-          updated_at: serverTimestamp()
-        })
-        
-        toast.success(`Case updated! ${formData.violation_type} added`)
-      } else {
-        const caseNumber = `CASE-${Date.now()}`
-        const offenseHistory = [{
-          offense_level: formData.violation_type,
-          description: formData.description,
-          date_of_incident: formData.date_of_incident,
-          location: formData.location,
-          reported_by: formData.reported_by,
-          reported_at: new Date()
-        }]
-        
-        await addDoc(collection(db, 'disciplinary_cases'), {
-          case_number: caseNumber,
-          student_name: formData.student_name,
-          student_id: formData.student_id,
-          violation_type: formData.violation_type,
-          description: formData.description,
-          date_of_incident: formData.date_of_incident,
-          location: formData.location,
-          reported_by: formData.reported_by,
-          offense_history: offenseHistory,
-          offense_count: 1,
-          status: 'pending',
-          created_at: serverTimestamp(),
-          updated_at: serverTimestamp(),
-        })
-
-        toast.success(`Incident reported successfully! Case #${caseNumber}`)
-      }
+      const result = await createCase(formData)
+      toast.success(result.message || 'Incident reported successfully!')
       
       setFormData({
         student_name: '',
@@ -357,7 +216,7 @@ export default function CaseManagement() {
   }
 
   const openReportModal = () => {
-    fetchStudents()
+    fetchStudentsData()
     setShowReportModal(true)
   }
 

@@ -1,7 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from './lib/firebase'
+import { getCurrentUser, logout } from './lib/api'
 import { Toaster } from 'react-hot-toast'
 import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
@@ -17,12 +16,20 @@ function App() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user)
-      setLoading(false)
-    })
+    const token = localStorage.getItem('minsu_token')
 
-    return () => unsubscribe()
+    if (!token) {
+      setLoading(false)
+      return
+    }
+
+    getCurrentUser()
+      .then((userData) => setUser(userData))
+      .catch(() => {
+        logout()
+        setUser(null)
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   if (loading) {
@@ -37,7 +44,7 @@ function App() {
   }
 
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Toaster
         position="top-right"
         toastOptions={{

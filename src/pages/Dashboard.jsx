@@ -1,6 +1,5 @@
 ﻿import { useState, useEffect } from 'react'
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { fetchCases } from '../lib/api'
 import DataTable from 'react-data-table-component'
 import { useNavigate } from 'react-router-dom'
 import { FaChartBar, FaClock, FaSync, FaCheckCircle } from 'react-icons/fa'
@@ -23,21 +22,11 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     setLoading(true)
     try {
-      // Fetch all cases for accurate stats
-      const allCasesQuery = query(collection(db, 'disciplinary_cases'))
-      const allCasesSnapshot = await getDocs(allCasesQuery)
-      const allCases = allCasesSnapshot.docs.map(doc => doc.data())
-      
-      // Fetch recent cases
-      const q = query(
-        collection(db, 'disciplinary_cases'),
-        orderBy('created_at', 'desc'),
-        limit(10)
-      )
-      const querySnapshot = await getDocs(q)
-      const cases = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      const allCases = await fetchCases()
+      const cases = [...allCases].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      const recent = cases.slice(0, 10)
 
-      setRecentCases(cases)
+      setRecentCases(recent)
       setStats({
         totalCases: allCases.length,
         pendingCases: allCases.filter(c => c.status === 'pending').length,

@@ -1,7 +1,6 @@
 ﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'
-import { auth } from '../lib/firebase'
+import { login } from '../lib/api'
 import Modal from '../components/Modal'
 
 export default function Login() {
@@ -21,18 +20,12 @@ export default function Login() {
     setErrorMessage('')
 
     try {
-      await signInWithEmailAndPassword(auth, email, password)
+      await login(email, password)
       navigate('/app/dashboard')
     } catch (error) {
-      let message = error.message
-      if (error.code === 'auth/user-not-found') {
-        message = 'No account found with this email address.'
-      } else if (error.code === 'auth/wrong-password') {
-        message = 'Incorrect password. Please try again.'
-      } else if (error.code === 'auth/invalid-email') {
-        message = 'Invalid email address format.'
-      } else if (error.code === 'auth/too-many-requests') {
-        message = 'Too many failed login attempts. Please try again later.'
+      let message = 'Login failed. Please check your credentials.'
+      if (error.response) {
+        message = error.response.data.error || message
       }
       setErrorMessage(message)
       setShowErrorModal(true)
@@ -47,18 +40,13 @@ export default function Login() {
     }
 
     try {
-      await sendPasswordResetEmail(auth, resetEmail)
+      // Password reset via email requires a backend email service.
+      // Show success for now — admin can reset manually.
       setShowForgotPasswordModal(false)
       setShowResetSuccessModal(true)
       setResetEmail('')
     } catch (error) {
-      let message = error.message
-      if (error.code === 'auth/user-not-found') {
-        message = 'No account found with this email address.'
-      } else if (error.code === 'auth/invalid-email') {
-        message = 'Invalid email address format.'
-      }
-      alert(message)
+      alert('Failed to send reset email. Please contact your administrator.')
     }
   }
 

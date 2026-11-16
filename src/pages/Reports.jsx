@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, query, orderBy, getDocs } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { fetchCases } from '../lib/api'
 import { 
   PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, 
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
@@ -17,7 +16,6 @@ export default function Reports() {
     studentViolations: [],
   })
   const [loading, setLoading] = useState(true)
-  const [dateRange, setDateRange] = useState('all')
 
   const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899']
   const STATUS_COLORS = {
@@ -28,14 +26,12 @@ export default function Reports() {
 
   useEffect(() => {
     fetchReportData()
-  }, [dateRange])
+  }, [])
 
   const fetchReportData = async () => {
     setLoading(true)
     try {
-      const q = query(collection(db, 'disciplinary_cases'), orderBy('created_at', 'desc'))
-      const querySnapshot = await getDocs(q)
-      const cases = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      const cases = await fetchCases()
 
       const byStatus = cases.reduce((acc, case_) => {
         acc[case_.status] = (acc[case_.status] || 0) + 1
@@ -47,7 +43,6 @@ export default function Reports() {
         return acc
       }, {})
 
-      // Calculate monthly trend
       const monthlyData = {}
       cases.forEach(case_ => {
         const date = new Date(case_.date_of_incident)
@@ -59,7 +54,6 @@ export default function Reports() {
       })
       const monthlyTrend = Object.values(monthlyData).sort((a, b) => a.month.localeCompare(b.month))
 
-      // Calculate student violations
       const studentViolations = {}
       cases.forEach(case_ => {
         if (!studentViolations[case_.student_id]) {
@@ -121,7 +115,6 @@ export default function Reports() {
     )
   }
 
-  // Prepare chart data
   const statusChartData = Object.entries(reportData.byStatus).map(([status, count]) => ({
     name: status.charAt(0).toUpperCase() + status.slice(1),
     value: count,
@@ -149,7 +142,6 @@ export default function Reports() {
         </button>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform">
           <div className="flex items-center justify-between">
@@ -189,9 +181,7 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Status Distribution Pie Chart */}
         <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-emerald-500">
           <div className="flex items-center space-x-2 mb-6">
             <FaChartPie className="text-emerald-600 text-xl" />
@@ -218,7 +208,6 @@ export default function Reports() {
           </ResponsiveContainer>
         </div>
 
-        {/* Violation Types Bar Chart */}
         <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-emerald-500">
           <div className="flex items-center space-x-2 mb-6">
             <FaChartBar className="text-emerald-600 text-xl" />
@@ -236,9 +225,7 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Trend Line Chart */}
         <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-emerald-500">
           <div className="flex items-center space-x-2 mb-6">
             <FaChartLine className="text-emerald-600 text-xl" />
@@ -263,7 +250,6 @@ export default function Reports() {
           </ResponsiveContainer>
         </div>
 
-        {/* Top Students with Violations */}
         <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-emerald-500">
           <div className="flex items-center space-x-2 mb-6">
             <FaChartBar className="text-emerald-600 text-xl" />
@@ -295,7 +281,6 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Recent Activity */}
       <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-emerald-500">
         <h3 className="text-lg font-bold text-gray-900 mb-4">Recent Activity</h3>
         <div className="space-y-3 max-h-96 overflow-y-auto">

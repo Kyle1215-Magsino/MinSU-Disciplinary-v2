@@ -1,7 +1,6 @@
 ﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { auth } from '../lib/firebase'
+import { register } from '../lib/api'
 import Modal from '../components/Modal'
 
 export default function Register() {
@@ -39,19 +38,15 @@ export default function Register() {
     }
 
     try {
-      await createUserWithEmailAndPassword(auth, formData.email, formData.password)
+      await register(formData.email, formData.password, formData.fullName, formData.role)
       setShowSuccessModal(true)
       setTimeout(() => {
         navigate('/app/dashboard')
       }, 2000)
     } catch (error) {
-      let message = error.message
-      if (error.code === 'auth/email-already-in-use') {
-        message = 'This email is already registered. Please use a different email or login.'
-      } else if (error.code === 'auth/invalid-email') {
-        message = 'Invalid email address format.'
-      } else if (error.code === 'auth/weak-password') {
-        message = 'Password is too weak. Please use a stronger password.'
+      let message = 'Registration failed. Please try again.'
+      if (error.response) {
+        message = error.response.data.error || message
       }
       setErrorMessage(message)
       setShowErrorModal(true)

@@ -1,6 +1,5 @@
 ﻿import { useState, useEffect } from 'react'
-import { collection, addDoc, serverTimestamp, query, getDocs, where, doc, updateDoc } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { fetchStudents, fetchCases, createCase } from '../lib/api'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { FaUser, FaIdCard, FaExclamationTriangle, FaFileAlt, FaCalendar, FaMapMarkerAlt, FaUserTie, FaSearch } from 'react-icons/fa'
@@ -24,45 +23,31 @@ export default function IncidentReport() {
   const [filteredStudents, setFilteredStudents] = useState([])
   const [showStudentDropdown, setShowStudentDropdown] = useState(false)
 
-  useEffect(() => {
-    fetchStudents()
-  }, [])
-
-  const fetchStudents = async () => {
+  const fetchStudentsData = async () => {
     try {
-      // Fetch from students collection
-      const studentsQuery = query(collection(db, 'students'))
-      const studentsSnapshot = await getDocs(studentsQuery)
-      const studentsFromDB = studentsSnapshot.docs.map(doc => ({
-        name: doc.data().student_name,
-        id: doc.data().student_id,
-        course: doc.data().course,
-        year_level: doc.data().year_level,
+      const studentsFromDB = await fetchStudents()
+      const studentsData = studentsFromDB.map(s => ({
+        name: s.student_name,
+        id: s.student_id,
+        course: s.course,
+        year_level: s.year_level,
         offenseCount: 0
       }))
-      
-      // Fetch from disciplinary cases to get offense counts
-      const casesQuery = query(collection(db, 'disciplinary_cases'))
-      const casesSnapshot = await getDocs(casesQuery)
-      const casesData = casesSnapshot.docs.map(doc => doc.data())
-      
-      // Count offenses per student
+
+      const casesData = await fetchCases()
       const offenseCounts = {}
       casesData.forEach(case_ => {
-        if (!offenseCounts[case_.student_id]) {
-          offenseCounts[case_.student_id] = 0
-        }
+        if (!offenseCounts[case_.student_id]) offenseCounts[case_.student_id] = 0
         offenseCounts[case_.student_id]++
       })
-      
-      // Merge students with their offense counts
-      const studentsWithOffenses = studentsFromDB.map(student => ({
+
+      const studentsWithOffenses = studentsData.map(student => ({
         ...student,
         offenseCount: offenseCounts[student.id] || 0
       }))
-      
-      // Also add students from cases who might not be in students collection
-      const studentIdsInDB = new Set(studentsFromDB.map(s => s.id))
+
+      // Also add students found in cases but not in student list
+      const studentIdsInDB = new Set(studentsData.map(s => s.id))
       casesData.forEach(case_ => {
         if (!studentIdsInDB.has(case_.student_id)) {
           studentsWithOffenses.push({
@@ -75,13 +60,17 @@ export default function IncidentReport() {
           studentIdsInDB.add(case_.student_id)
         }
       })
-      
+
       setStudents(studentsWithOffenses)
     } catch (error) {
       console.error('Error fetching students:', error)
       toast.error('Failed to load students')
     }
   }
+
+  useEffect(() => {
+    fetchStudentsData()
+  }, [])
 
   const handleStudentNameChange = (e) => {
     const value = e.target.value
@@ -138,95 +127,10 @@ export default function IncidentReport() {
     setLoading(true)
 
     try {
-      // Check if student already has a case
-      const q = query(
-        collection(db, 'disciplinary_cases'),
-        where('student_id', '==', formData.student_id)
-      )
-      const querySnapshot = await getDocs(q)
-      
-      if (!querySnapshot.empty) {
-        // Student already has a case - update it
-        const existingCase = querySnapshot.docs[0]
-        const existingData = existingCase.data()
-        const caseNumber = existingData.case_number
-        
-        // Get current offense history
-        const offenseHistory = existingData.offense_history || []
-        
-        // Add new offense to history
-        const newOffense = {
-          offense_level: formData.violation_type,
-          description: formData.description,
-          date_of_incident: formData.date_of_incident,
-          location: formData.location,
-          reported_by: formData.reported_by,
-          reported_at: new Date()
-        }
-        
-        offenseHistory.push(newOffense)
-        
-        // Update the case with new offense
-        await updateDoc(doc(db, 'disciplinary_cases', existingCase.id), {
-          violation_type: formData.violation_type, // Update to latest offense level
-          description: formData.description, // Update to latest description
-          date_of_incident: formData.date_of_incident, // Update to latest date
-          location: formData.location, // Update to latest location
-          reported_by: formData.reported_by, // Update to latest reporter
-          offense_history: offenseHistory,
-          offense_count: offenseHistory.length,
-          status: 'pending', // Reset to pending for review
-          updated_at: serverTimestamp()
-        })
-        
-        setGeneratedCaseNumber(caseNumber)
-        setShowSuccessModal(true)
-        toast.success(`Case updated! ${formData.violation_type} added to Case #${caseNumber}`)
-        
-        // Redirect to case management after 2 seconds
-        setTimeout(() => {
-          navigate('/app/cases')
-        }, 2000)
-        
-      } else {
-        // No existing case - create new one
-        const caseNumber = `CASE-${Date.now()}`
-        
-        // Create offense history with first offense
-        const offenseHistory = [{
-          offense_level: formData.violation_type,
-          description: formData.description,
-          date_of_incident: formData.date_of_incident,
-          location: formData.location,
-          reported_by: formData.reported_by,
-          reported_at: new Date()
-        }]
-        
-        await addDoc(collection(db, 'disciplinary_cases'), {
-          case_number: caseNumber,
-          student_name: formData.student_name,
-          student_id: formData.student_id,
-          violation_type: formData.violation_type,
-          description: formData.description,
-          date_of_incident: formData.date_of_incident,
-          location: formData.location,
-          reported_by: formData.reported_by,
-          offense_history: offenseHistory,
-          offense_count: 1,
-          status: 'pending',
-          created_at: serverTimestamp(),
-          updated_at: serverTimestamp(),
-        })
-
-        setGeneratedCaseNumber(caseNumber)
-        setShowSuccessModal(true)
-        toast.success(`Incident reported successfully! Case #${caseNumber}`)
-        
-        // Redirect to case management after 2 seconds
-        setTimeout(() => {
-          navigate('/app/cases')
-        }, 2000)
-      }
+      const result = await createCase(formData)
+      setGeneratedCaseNumber(result.case_number)
+      setShowSuccessModal(true)
+      toast.success(result.message || 'Incident reported successfully!')
       
       setFormData({
         student_name: '',
@@ -237,6 +141,10 @@ export default function IncidentReport() {
         location: '',
         reported_by: '',
       })
+
+      setTimeout(() => {
+        navigate('/app/cases')
+      }, 2000)
     } catch (error) {
       console.error('Error adding document:', error)
       toast.error('Error submitting report. Please try again.')

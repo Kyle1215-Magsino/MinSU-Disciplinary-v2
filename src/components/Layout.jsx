@@ -1,7 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { signOut } from 'firebase/auth'
-import { auth } from '../lib/firebase'
+import { logout } from '../lib/api'
 import { useAuth } from '../lib/useAuth'
 import { FaChartBar, FaFolderOpen, FaChartLine, FaSignOutAlt, FaGavel, FaBars, FaTimes, FaUsers, FaUserGraduate } from 'react-icons/fa'
 import toast from 'react-hot-toast'
@@ -20,7 +19,7 @@ export default function Layout({ user }) {
 
   const handleLogoutConfirm = async () => {
     try {
-      await signOut(auth)
+      logout()
       toast.success('Logged out successfully!')
       navigate('/')
     } catch (error) {

@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, query, getDocs, doc, updateDoc, setDoc } from 'firebase/firestore'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { db, auth } from '../lib/firebase'
+import { fetchUsers, addUser, updateUserRole, archiveUser, restoreUser } from '../lib/api'
 import { useAuth } from '../lib/useAuth'
 import toast from 'react-hot-toast'
 import DataTable from 'react-data-table-component'
@@ -26,22 +24,14 @@ export default function UserManagement() {
   })
 
   useEffect(() => {
-    fetchUsers()
+    fetchUsersData()
   }, [showArchivedUsers])
 
-  const fetchUsers = async () => {
+  const fetchUsersData = async () => {
     setLoading(true)
     try {
-      const q = query(collection(db, 'users'))
-      const querySnapshot = await getDocs(q)
-      const usersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      
-      // Filter based on archived status
-      const filteredUsers = showArchivedUsers 
-        ? usersData.filter(user => user.archived === true)
-        : usersData.filter(user => !user.archived)
-      
-      setUsers(filteredUsers)
+      const data = await fetchUsers(showArchivedUsers ? 'true' : 'false')
+      setUsers(data)
     } catch (error) {
       console.error('Error fetching users:', error)
       toast.error('Failed to load users')
@@ -51,52 +41,26 @@ export default function UserManagement() {
 
   const handleAddUser = async (e) => {
     e.preventDefault()
-    
     try {
-      // Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(
-        auth, 
-        newUserData.email, 
-        newUserData.password
-      )
-
-      // Add user data to Firestore using UID as document ID
-      await setDoc(doc(db, 'users', userCredential.user.uid), {
-        fullName: newUserData.fullName,
-        email: newUserData.email,
-        role: newUserData.role,
-        archived: false,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      })
-
+      await addUser(newUserData)
       toast.success('User added successfully!')
       setShowAddModal(false)
       setNewUserData({ fullName: '', email: '', password: '', role: 'officer' })
-      fetchUsers()
+      fetchUsersData()
     } catch (error) {
       console.error('Error adding user:', error)
-      let message = 'Failed to add user'
-      if (error.code === 'auth/email-already-in-use') {
-        message = 'This email is already registered'
-      }
-      toast.error(message)
+      toast.error(error.response?.data?.error || 'Failed to add user')
     }
   }
 
   const handleUpdateRole = async () => {
     if (!selectedUser) return
-
     try {
-      await updateDoc(doc(db, 'users', selectedUser.id), {
-        role: selectedUser.role,
-        updatedAt: new Date()
-      })
-
+      await updateUserRole(selectedUser.id, selectedUser.role)
       toast.success('User role updated successfully!')
       setShowEditModal(false)
       setSelectedUser(null)
-      fetchUsers()
+      fetchUsersData()
     } catch (error) {
       console.error('Error updating user:', error)
       toast.error('Failed to update user role')
@@ -105,18 +69,12 @@ export default function UserManagement() {
 
   const handleArchiveUser = async () => {
     if (!selectedUser) return
-
     try {
-      await updateDoc(doc(db, 'users', selectedUser.id), {
-        archived: true,
-        archivedAt: new Date(),
-        updatedAt: new Date()
-      })
-
+      await archiveUser(selectedUser.id)
       toast.success('User archived successfully!')
       setShowArchiveModal(false)
       setSelectedUser(null)
-      fetchUsers()
+      fetchUsersData()
     } catch (error) {
       console.error('Error archiving user:', error)
       toast.error('Failed to archive user')
@@ -125,14 +83,9 @@ export default function UserManagement() {
 
   const handleRestoreUser = async (user) => {
     try {
-      await updateDoc(doc(db, 'users', user.id), {
-        archived: false,
-        archivedAt: null,
-        updatedAt: new Date()
-      })
-
+      await restoreUser(user.id)
       toast.success('User restored successfully!')
-      fetchUsers()
+      fetchUsersData()
     } catch (error) {
       console.error('Error restoring user:', error)
       toast.error('Failed to restore user')
@@ -147,7 +100,6 @@ export default function UserManagement() {
     }
     const badge = badges[role] || badges.officer
     const IconComponent = badge.icon
-
     return (
       <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-semibold ${badge.color}`}>
         <IconComponent />
@@ -188,37 +140,22 @@ export default function UserManagement() {
         <div className="flex items-center justify-center space-x-2">
           {!showArchivedUsers ? (
             <>
-              <button
-                onClick={() => {
-                  setSelectedUser(row)
-                  setShowEditModal(true)
-                }}
+              <button onClick={() => { setSelectedUser(row); setShowEditModal(true) }}
                 className="flex items-center space-x-1 px-2 sm:px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-xs sm:text-sm"
-                title="Edit Role"
-              >
-                <FaEdit />
-                <span className="hidden sm:inline">Edit</span>
+                title="Edit Role">
+                <FaEdit /><span className="hidden sm:inline">Edit</span>
               </button>
-              <button
-                onClick={() => {
-                  setSelectedUser(row)
-                  setShowArchiveModal(true)
-                }}
+              <button onClick={() => { setSelectedUser(row); setShowArchiveModal(true) }}
                 className="flex items-center space-x-1 px-2 sm:px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-xs sm:text-sm"
-                title="Archive User"
-              >
-                <FaArchive />
-                <span className="hidden sm:inline">Archive</span>
+                title="Archive User">
+                <FaArchive /><span className="hidden sm:inline">Archive</span>
               </button>
             </>
           ) : (
-            <button
-              onClick={() => handleRestoreUser(row)}
+            <button onClick={() => handleRestoreUser(row)}
               className="flex items-center space-x-1 px-2 sm:px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-xs sm:text-sm"
-              title="Restore User"
-            >
-              <FaUndo />
-              <span className="hidden sm:inline">Restore</span>
+              title="Restore User">
+              <FaUndo /><span className="hidden sm:inline">Restore</span>
             </button>
           )}
         </div>
@@ -227,36 +164,12 @@ export default function UserManagement() {
   ]
 
   const customStyles = {
-    headRow: {
-      style: {
-        backgroundColor: '#f9fafb',
-        borderBottom: '2px solid #e5e7eb',
-        fontWeight: '600',
-        fontSize: '13px',
-        color: '#374151',
-        minHeight: '48px',
-      },
-    },
-    rows: {
-      style: {
-        fontSize: '14px',
-        minHeight: '60px',
-        '&:hover': {
-          backgroundColor: '#f3f4f6',
-        },
-      },
-    },
-    pagination: {
-      style: {
-        borderTop: '1px solid #e5e7eb',
-        minHeight: '56px',
-      },
-    },
+    headRow: { style: { backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb', fontWeight: '600', fontSize: '13px', color: '#374151', minHeight: '48px' } },
+    rows: { style: { fontSize: '14px', minHeight: '60px', '&:hover': { backgroundColor: '#f3f4f6' } } },
+    pagination: { style: { borderTop: '1px solid #e5e7eb', minHeight: '56px' } },
   }
 
-  // Check if current user is admin
   if (userRole === null) {
-    // Still loading user role
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
@@ -287,30 +200,21 @@ export default function UserManagement() {
           <p className="text-sm sm:text-base text-gray-600 mt-1">Manage system users and their roles</p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-          <button
-            onClick={() => setShowArchivedUsers(!showArchivedUsers)}
+          <button onClick={() => setShowArchivedUsers(!showArchivedUsers)}
             className={`flex items-center justify-center space-x-2 px-4 py-2 sm:py-2 rounded-lg font-semibold transition-all text-sm sm:text-base ${
-              showArchivedUsers
-                ? 'bg-gray-600 hover:bg-gray-700 text-white'
-                : 'bg-orange-100 hover:bg-orange-200 text-orange-700'
-            }`}
-          >
+              showArchivedUsers ? 'bg-gray-600 hover:bg-gray-700 text-white' : 'bg-orange-100 hover:bg-orange-200 text-orange-700'}`}>
             <FaArchive />
             <span>{showArchivedUsers ? 'Show Active Users' : 'Show Archived'}</span>
           </button>
           {!showArchivedUsers && (
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center justify-center space-x-2 px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg text-sm sm:text-base"
-            >
-              <FaUserPlus />
-              <span>Add New User</span>
+            <button onClick={() => setShowAddModal(true)}
+              className="flex items-center justify-center space-x-2 px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg text-sm sm:text-base">
+              <FaUserPlus /><span>Add New User</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Users DataTable */}
       <div className="bg-white rounded-xl shadow-lg border-2 border-emerald-500 overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-12">
@@ -324,116 +228,66 @@ export default function UserManagement() {
             </p>
           </div>
         ) : (
-          <DataTable
-            columns={columns}
-            data={users}
-            customStyles={customStyles}
-            pagination
-            paginationPerPage={10}
-            paginationRowsPerPageOptions={[10, 20, 30, 50]}
-            highlightOnHover
-            responsive
-          />
+          <DataTable columns={columns} data={users} customStyles={customStyles}
+            pagination paginationPerPage={10} paginationRowsPerPageOptions={[10, 20, 30, 50]}
+            highlightOnHover responsive />
         )}
       </div>
 
-      {/* Add User Modal */}
       <Modal
         isOpen={showAddModal}
-        onClose={() => {
-          setShowAddModal(false)
-          setNewUserData({ fullName: '', email: '', password: '', role: 'officer' })
-        }}
+        onClose={() => { setShowAddModal(false); setNewUserData({ fullName: '', email: '', password: '', role: 'officer' }) }}
         title="Add New User"
         size="md"
       >
         <form onSubmit={handleAddUser} className="space-y-4 sm:space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Full Name *
-            </label>
-            <input
-              type="text"
-              value={newUserData.fullName}
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name *</label>
+            <input type="text" value={newUserData.fullName}
               onChange={(e) => setNewUserData({ ...newUserData, fullName: e.target.value })}
               className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-              placeholder="Juan Dela Cruz"
-              required
-            />
+              placeholder="Juan Dela Cruz" required />
           </div>
-
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Email Address *
-            </label>
-            <input
-              type="email"
-              value={newUserData.email}
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address *</label>
+            <input type="email" value={newUserData.email}
               onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })}
               className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-              placeholder="user@minsu.edu.ph"
-              required
-            />
+              placeholder="user@minsu.edu.ph" required />
           </div>
-
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Password *
-            </label>
-            <input
-              type="password"
-              value={newUserData.password}
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Password *</label>
+            <input type="password" value={newUserData.password}
               onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
               className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-              placeholder="Minimum 6 characters"
-              required
-              minLength={6}
-            />
+              placeholder="Minimum 6 characters" required minLength={6} />
           </div>
-
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Role *
-            </label>
-            <select
-              value={newUserData.role}
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Role *</label>
+            <select value={newUserData.role}
               onChange={(e) => setNewUserData({ ...newUserData, role: e.target.value })}
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-            >
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base">
               <option value="officer">Discipline Officer</option>
               <option value="admin">Administrator</option>
               <option value="staff">Staff</option>
             </select>
           </div>
-
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={() => {
-                setShowAddModal(false)
-                setNewUserData({ fullName: '', email: '', password: '', role: 'officer' })
-              }}
-              className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition-colors text-sm sm:text-base"
-            >
+            <button type="button" onClick={() => { setShowAddModal(false); setNewUserData({ fullName: '', email: '', password: '', role: 'officer' }) }}
+              className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition-colors text-sm sm:text-base">
               Cancel
             </button>
-            <button
-              type="submit"
-              className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors text-sm sm:text-base"
-            >
+            <button type="submit"
+              className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors text-sm sm:text-base">
               Add User
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* Edit Role Modal */}
       <Modal
         isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false)
-          setSelectedUser(null)
-        }}
+        onClose={() => { setShowEditModal(false); setSelectedUser(null) }}
         title="Edit User Role"
         size="sm"
       >
@@ -444,36 +298,23 @@ export default function UserManagement() {
               <p className="text-base sm:text-lg font-semibold text-gray-900">{selectedUser.fullName}</p>
               <p className="text-xs sm:text-sm text-gray-500">{selectedUser.email}</p>
             </div>
-
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Select New Role
-              </label>
-              <select
-                value={selectedUser.role}
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Select New Role</label>
+              <select value={selectedUser.role}
                 onChange={(e) => setSelectedUser({ ...selectedUser, role: e.target.value })}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
-              >
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base">
                 <option value="officer">Discipline Officer</option>
                 <option value="admin">Administrator</option>
                 <option value="staff">Staff</option>
               </select>
             </div>
-
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
-              <button
-                onClick={() => {
-                  setShowEditModal(false)
-                  setSelectedUser(null)
-                }}
-                className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition-colors text-sm sm:text-base"
-              >
+              <button onClick={() => { setShowEditModal(false); setSelectedUser(null) }}
+                className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition-colors text-sm sm:text-base">
                 Cancel
               </button>
-              <button
-                onClick={handleUpdateRole}
-                className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors text-sm sm:text-base"
-              >
+              <button onClick={handleUpdateRole}
+                className="w-full sm:flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors text-sm sm:text-base">
                 Update Role
               </button>
             </div>
@@ -481,13 +322,9 @@ export default function UserManagement() {
         )}
       </Modal>
 
-      {/* Archive Confirmation Modal */}
       <ConfirmModal
         isOpen={showArchiveModal}
-        onClose={() => {
-          setShowArchiveModal(false)
-          setSelectedUser(null)
-        }}
+        onClose={() => { setShowArchiveModal(false); setSelectedUser(null) }}
         onConfirm={handleArchiveUser}
         title="Archive User"
         message={`Are you sure you want to archive ${selectedUser?.fullName}? The user will not be able to login but can be restored later.`}
