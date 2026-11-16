@@ -1,173 +1,100 @@
-# MinSU Disciplinary System CMS
+# MinSU Disciplinary System
 
-A modern, web-based Disciplinary Case Management System for Mindoro State University - Bongabong Campus.
+A web-based disciplinary case management system for Mindoro State University - Bongabong Campus.
 
-## Features
+**Stack:** React + Vite (frontend) · Express + MySQL (backend) · JWT authentication
 
-- 🔐 Secure authentication with Supabase
-- 📊 Real-time dashboard with case statistics
-- 📝 Online incident reporting system
-- 📋 Comprehensive case management
-- 📈 Analytics and reporting tools
-- 🎨 Modern UI with Tailwind CSS
-- 📱 Fully responsive design
+---
 
-## Tech Stack
+## Setup
 
-- **Frontend**: React 18 + Vite
-- **Backend**: Firebase (Firestore)
-- **Styling**: Tailwind CSS
-- **Routing**: React Router v6
-- **Authentication**: Firebase Auth
+### 1. MySQL Database
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+ and npm
-- Supabase account
-
-### Installation
-
-1. Clone the repository
-```bash
-git clone <repository-url>
-cd minsu-disciplinary-system
-```
-
-2. Install dependencies
-```bash
-npm install
-```
-
-3. Set up Supabase
-
-Create a new Supabase project at https://supabase.com
-
-4. Create the database table
-
-Run this SQL in your Supabase SQL Editor:
+Create the database and run the schema:
 
 ```sql
-CREATE TABLE disciplinary_cases (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  case_number TEXT UNIQUE NOT NULL,
-  student_name TEXT NOT NULL,
-  student_id TEXT NOT NULL,
-  violation_type TEXT NOT NULL,
-  description TEXT NOT NULL,
-  date_of_incident DATE NOT NULL,
-  location TEXT NOT NULL,
-  reported_by TEXT NOT NULL,
-  status TEXT DEFAULT 'pending',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Enable Row Level Security
-ALTER TABLE disciplinary_cases ENABLE ROW LEVEL SECURITY;
-
--- Create policy for authenticated users
-CREATE POLICY "Enable all access for authenticated users" ON disciplinary_cases
-  FOR ALL USING (auth.role() = 'authenticated');
+CREATE DATABASE minsu_disciplinary CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-5. Configure environment variables
-
-Copy `.env.example` to `.env` and add your Supabase credentials:
+Then run the schema file:
 
 ```bash
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+mysql -u root -p minsu_disciplinary < server/schema.sql
 ```
 
-6. Start the development server
+### 2. Backend (Express API)
+
 ```bash
+cd server
+cp .env.example .env
+# Edit .env with your MySQL credentials and a JWT secret
+npm install
+npm start
+```
+
+The server runs on `http://localhost:3000`.
+
+### 3. Frontend (React)
+
+```bash
+# From project root
+cp .env.example .env
+# VITE_API_URL=http://localhost:3000/api (already set by default)
+npm install
 npm run dev
 ```
 
-7. Open http://localhost:5173 in your browser
+The app runs on `http://localhost:5173`.
+
+---
+
+## Default Admin Account
+
+After running the schema, create your first admin by registering on the app — the first user to register gets role `officer` by default. To promote to admin, run this SQL:
+
+```sql
+UPDATE users SET role = 'admin' WHERE email = 'your@email.com';
+```
+
+Or use the `server/create-admin.js` utility if present.
+
+---
 
 ## Project Structure
 
 ```
-minsu-disciplinary-system/
-├── src/
-│   ├── components/
-│   │   └── Layout.jsx          # Main layout with navigation
+├── src/                   # React frontend
 │   ├── lib/
-│   │   └── supabase.js         # Supabase client configuration
-│   ├── pages/
-│   │   ├── Login.jsx           # Authentication page
-│   │   ├── Dashboard.jsx       # Main dashboard
-│   │   ├── IncidentReport.jsx  # Report new incidents
-│   │   ├── CaseManagement.jsx  # Manage cases
-│   │   └── Reports.jsx         # Analytics and reports
-│   ├── App.jsx                 # Main app component
-│   ├── main.jsx               # Entry point
-│   └── index.css              # Global styles
-├── index.html
-├── package.json
-├── tailwind.config.js
-└── vite.config.js
+│   │   ├── api.js         # All API calls (MySQL backend)
+│   │   └── useAuth.js     # Auth hook using JWT
+│   └── pages/             # App pages
+└── server/                # Express backend
+    ├── index.js           # API routes
+    ├── db.js              # MySQL connection pool
+    ├── schema.sql         # Database schema
+    └── middleware/
+        └── auth.js        # JWT middleware
 ```
 
-## Usage
+---
 
-### Creating a User Account
+## API Endpoints
 
-1. Go to your Supabase project dashboard
-2. Navigate to Authentication > Users
-3. Click "Add User" and create an account with email/password
-4. Use these credentials to log in to the system
-
-### Reporting an Incident
-
-1. Navigate to "Report Incident"
-2. Fill in all required fields
-3. Submit the form
-4. A unique case number will be generated automatically
-
-### Managing Cases
-
-1. Go to "Case Management"
-2. Filter cases by status (All, Pending, Active, Resolved)
-3. Click on a case to view details
-4. Update case status as needed
-
-### Viewing Reports
-
-1. Navigate to "Reports & Analytics"
-2. View statistics and trends
-3. Export reports as CSV files
-
-## Deployment
-
-### Build for Production
-
-```bash
-npm run build
-```
-
-The build output will be in the `dist` folder.
-
-### Deploy to Vercel/Netlify
-
-1. Connect your repository to Vercel or Netlify
-2. Add environment variables in the deployment settings
-3. Deploy!
-
-## Security Notes
-
-- All routes are protected with authentication
-- Row Level Security (RLS) is enabled on Supabase
-- Only authenticated users can access the system
-- Passwords are securely hashed by Supabase Auth
-
-## Support
-
-For issues or questions, contact the IT department at Mindoro State University.
-
-## License
-
-© 2024 Mindoro State University. All rights reserved.
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/auth/login` | — | Login |
+| POST | `/api/auth/register` | — | Register |
+| GET | `/api/auth/me` | ✓ | Get current user |
+| GET | `/api/users` | admin | List users |
+| POST | `/api/users` | admin | Add user |
+| PUT | `/api/users/:id/role` | admin | Update role |
+| PUT | `/api/users/:id/archive` | admin | Archive user |
+| PUT | `/api/users/:id/restore` | admin | Restore user |
+| GET | `/api/students` | ✓ | List students |
+| POST | `/api/students` | ✓ | Add student |
+| PUT | `/api/students/:id` | ✓ | Update student |
+| DELETE | `/api/students/:id` | ✓ | Delete student |
+| GET | `/api/cases` | ✓ | List cases |
+| POST | `/api/cases` | ✓ | Report incident |
+| PUT | `/api/cases/:id/status` | ✓ | Update status |
+| POST | `/api/cases/merge` | ✓ | Merge duplicates |
